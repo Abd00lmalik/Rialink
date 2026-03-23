@@ -4,7 +4,7 @@ const STEPS = [
   {
     num: '01',
     title: 'Connect your wallet',
-    body: 'Phantom or Backpack. No email, no password, no personal data.',
+    body: ' No email, no password, no personal data.',
   },
   {
     num: '02',
