@@ -1,4 +1,4 @@
-export type Platform = 'github' | 'discord' | 'farcaster';
+﻿export type Platform = 'github' | 'discord' | 'farcaster';
 
 export type VerificationStatus =
   | 'unverified'
@@ -17,6 +17,7 @@ export interface ProofRecord {
   txSignature?: string;
   repoCount?: number;
   followerCount?: number;
+  pfpUrl?: string;
 }
 
 export interface VerificationState {
@@ -32,3 +33,4 @@ export interface ToastItem {
   title: string;
   message?: string;
 }
+
