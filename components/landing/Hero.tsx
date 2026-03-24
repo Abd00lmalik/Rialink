@@ -1,6 +1,19 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
+
+function HeroStats() {
+  const [stats, setStats] = useState<{ wallets: number; proofs: number } | null>(null);
+  useEffect(() => {
+    fetch("/api/stats").then(r => r.json()).then(setStats).catch(() => {});
+  }, []);
+  if (!stats) return <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>— wallets verified · — proofs · 3 platforms</p>;
+  return (
+    <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>
+      {stats.wallets.toLocaleString()} wallets verified · {stats.proofs.toLocaleString()} proofs · 3 platforms
+    </p>
+  );
+}
 
 export function Hero() {
   return (
@@ -15,7 +28,7 @@ export function Hero() {
             fontSize: '12px', fontWeight: 500,
             display: 'inline-flex', alignItems: 'center', gap: '5px',
           }}>
-            <span className="pulse-dot" style={{ color: 'var(--accent)' }}>●</span>
+            <span className="pulse-dot" style={{ color: 'var(--accent)' }}>â—</span>
             Live on Rialo Devnet
           </span>
         </div>
@@ -37,7 +50,7 @@ export function Hero() {
           lineHeight: 1.65,
         }}>
           Link your GitHub, Discord, and Farcaster accounts to your wallet.
-          No real name. No email stored. Just proof — permanent and verifiable on Rialo.
+          No real name. No email stored. Just proof â€” permanent and verifiable on Rialo.
         </p>
 
         {/* CTAs */}
@@ -52,7 +65,7 @@ export function Hero() {
             }}
             className="btn-primary"
           >
-            Get Verified →
+            Get Verified â†’
           </Link>
           <Link
             href="/profile/demo"
@@ -71,9 +84,12 @@ export function Hero() {
 
         {/* Stats row */}
         <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-          1,247 wallets verified · 3,891 proofs · 3 platforms
+          1,247 wallets verified Â· 3,891 proofs Â· 3 platforms
         </p>
       </div>
     </section>
   );
 }
+
+
+
