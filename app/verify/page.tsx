@@ -55,14 +55,7 @@ function VerifyDashboard() {
       const proofRes = await fetch("/api/proof", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          wallet,
-          platform: "farcaster",
-          proofHash: verifyData.proofHash,
-          usernameHash: verifyData.usernameHash,
-          maskedUsername: verifyData.maskedUsername,
-          followerCount: verifyData.followerCount,
-        }),
+        body: JSON.stringify({ wallet, platform: "farcaster", proofHash: verifyData.proofHash, usernameHash: verifyData.usernameHash, maskedUsername: verifyData.maskedUsername, followerCount: verifyData.followerCount, pfpUrl: verifyData.pfpUrl }),
       });
       if (!proofRes.ok) throw new Error("Proof store failed");
 
@@ -211,4 +204,6 @@ export default function VerifyPage() {
     </Suspense>
   );
 }
+
+
 

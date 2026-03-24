@@ -154,10 +154,15 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
                     <p style={{ fontSize: "14px", color: "var(--text-primary)" }}>{proof.repoCount} public repos</p>
                   </div>
                 )}
-                {platform === "farcaster" && proof.followerCount !== undefined && (
-                  <div>
-                    <p style={{ fontSize: "11px", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "4px" }}>Followers</p>
-                    <p style={{ fontSize: "14px", color: "var(--text-primary)" }}>{proof.followerCount}</p>
+                {platform === "farcaster" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {proof.pfpUrl && (
+                      <img src={proof.pfpUrl} alt="pfp" style={{ width: "40px", height: "40px", borderRadius: "50%", objectFit: "cover", border: "2px solid var(--border-subtle)" }} />
+                    )}
+                    <div>
+                      <p style={{ fontSize: "11px", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "4px" }}>Followers</p>
+                      <p style={{ fontSize: "14px", color: "var(--text-primary)" }}>{proof.followerCount ?? 0}</p>
+                    </div>
                   </div>
                 )}
                 {platform === "discord" && (
@@ -220,3 +225,4 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
     </div>
   );
 }
+
