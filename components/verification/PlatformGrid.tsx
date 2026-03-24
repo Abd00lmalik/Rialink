@@ -7,11 +7,12 @@ interface PlatformGridProps {
   wallet: string;
   readOnly?: boolean;
   onRevoke?: (platform: Platform) => Promise<void>;
+  onUpdate?: (platform: Platform) => void;
   onConnect?: (platform: Platform) => void;
   onFarcasterConnect?: (data: { fid: number; username: string; custody: string; signature: string }) => void;
 }
 
-export function PlatformGrid({ verifications, wallet, readOnly, onRevoke, onConnect, onFarcasterConnect }: PlatformGridProps) {
+export function PlatformGrid({ verifications, wallet, readOnly, onRevoke, onUpdate, onConnect, onFarcasterConnect }: PlatformGridProps) {
   return (
     <div>
       {verifications.map((v) => (
@@ -21,6 +22,7 @@ export function PlatformGrid({ verifications, wallet, readOnly, onRevoke, onConn
           wallet={wallet}
           readOnly={readOnly}
           onRevoke={onRevoke}
+          onUpdate={onUpdate}
           onConnect={onConnect}
           onFarcasterConnect={onFarcasterConnect}
         />

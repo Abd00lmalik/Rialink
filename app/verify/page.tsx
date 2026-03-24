@@ -1,11 +1,11 @@
 ﻿"use client";
 
-import { Suspense, useCallback, useState } from "react";
+import { Suspense, useCallback, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import dynamic from "next/dynamic";
-import { Lock, ExternalLink, Copy } from "lucide-react";
-import { useVerifications } from "@/hooks/useVerifications";
+import { Lock, ExternalLink, Copy, LogOut } from "lucide-react";
+import { useVerifications, saveProofToStorage, removeProofFromStorage } from "@/hooks/useVerifications";
 import { useProofSubmit } from "@/hooks/useProofSubmit";
 import { useToast } from "@/hooks/useToast";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
@@ -16,7 +16,6 @@ import { ToastContainer } from "@/components/ui/Toast";
 import { Divider } from "@/components/ui/Divider";
 import { AddressDisplay } from "@/components/ui/AddressDisplay";
 import { generateAvatarColor } from "@/lib/utils";
-import { saveProofToStorage, removeProofFromStorage } from "@/hooks/useVerifications";
 import type { Platform } from "@/lib/types";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
@@ -28,12 +27,72 @@ function VerifyDashboard() {
   const { verifications, isLoading, refetch } = useVerifications(wallet);
   const { toasts, showToast, dismissToast } = useToast();
   const { copy: copyLink, copied: linkCopied } = useCopyToClipboard();
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   useProofSubmit(() => {
     refetch();
     showToast("success", "Verified!", "Your identity has been linked on-chain.");
   });
 
+  // ── Handle OAuth callback params (GitHub + Discord redirects back here) ──
+  useEffect(() => {
+    const success = searchParams.get("success");
+    const platform = searchParams.get("platform") as Platform | null;
+    const proofHash = searchParams.get("proofHash");
+    const usernameHash = searchParams.get("usernameHash");
+    const maskedUsername = searchParams.get("maskedUsername");
+    const pfpUrl = searchParams.get("pfpUrl") || "";
+    const repoCount = searchParams.get("repoCount");
+    const errorParam = searchParams.get("error");
+
+    // Resolve wallet: prefer connected wallet, fall back to localStorage
+    const resolvedWallet =
+      wallet || localStorage.getItem("verifyme_pending_wallet");
+
+    if (errorParam && platform) {
+      const msg = searchParams.get("message") || "Verification failed";
+      showToast("error", `${platform} error`, msg);
+      router.replace("/verify");
+      return;
+    }
+
+    if (success === "true" && platform && proofHash && resolvedWallet) {
+      const proof = {
+        wallet: resolvedWallet,
+        platform,
+        proofHash,
+        usernameHash: usernameHash || "",
+        maskedUsername: maskedUsername || "",
+        pfpUrl,
+        ...(repoCount !== null ? { repoCount: Number(repoCount) } : {}),
+        verifiedAt: new Date().toISOString(),
+      };
+
+      saveProofToStorage(resolvedWallet, proof);
+      localStorage.removeItem("verifyme_pending_wallet");
+
+      // Fire-and-forget server save
+      fetch("/api/proof", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(proof),
+      }).catch(() => {});
+
+      refetch();
+      showToast(
+        "success",
+        `${platform.charAt(0).toUpperCase() + platform.slice(1)} Verified!`,
+        "Your identity is now on-chain."
+      );
+
+      // Clean URL so refreshing doesn't re-trigger
+      router.replace("/verify");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  // ── Farcaster (no OAuth redirect — handled inline) ──
   const handleFarcasterConnect = useCallback(async (data: {
     fid: number;
     username: string;
@@ -42,7 +101,6 @@ function VerifyDashboard() {
   }) => {
     if (!wallet) return;
     try {
-      // Step 1 — verify with farcaster API
       const verifyRes = await fetch("/api/farcaster", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -51,38 +109,78 @@ function VerifyDashboard() {
       const verifyData = await verifyRes.json();
       if (!verifyData.success) throw new Error("Farcaster verify failed");
 
-      // Step 2 — store proof
-      const proofRes = await fetch("/api/proof", {
+      const proof = {
+        wallet,
+        platform: "farcaster" as Platform,
+        proofHash: verifyData.proofHash,
+        usernameHash: verifyData.usernameHash,
+        maskedUsername: verifyData.maskedUsername,
+        followerCount: verifyData.followerCount,
+        pfpUrl: verifyData.pfpUrl || "",
+        verifiedAt: new Date().toISOString(),
+      };
+
+      saveProofToStorage(wallet, proof);
+
+      fetch("/api/proof", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ wallet, platform: "farcaster", proofHash: verifyData.proofHash, usernameHash: verifyData.usernameHash, maskedUsername: verifyData.maskedUsername, followerCount: verifyData.followerCount, pfpUrl: verifyData.pfpUrl }),
-      });
-      if (!proofRes.ok) throw new Error("Proof store failed");
+        body: JSON.stringify(proof),
+      }).catch(() => {});
 
       await refetch();
       showToast("success", "Farcaster Verified!", "Your Farcaster identity is now on-chain.");
-    } catch (err) {
+    } catch {
       showToast("error", "Error", "Could not verify Farcaster identity.");
     }
   }, [wallet, refetch, showToast]);
 
+  // ── Disconnect single platform ──
   const handleRevoke = useCallback(async (platform: Platform) => {
     if (!wallet) return;
-    try {
-      const res = await fetch("/api/proof", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ wallet, platform }),
-      });
-      if (!res.ok) throw new Error("Failed");
-      removeProofFromStorage(wallet, platform);
-      await refetch();
-      showToast("success", "Revoked", `${platform} verification removed.`);
-    } catch {
-      showToast("error", "Error", "Could not revoke verification.");
+    removeProofFromStorage(wallet, platform);
+    await refetch();
+    fetch("/api/proof", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ wallet, platform }),
+    }).catch(() => {});
+    showToast("success", "Disconnected", `${platform} verification removed.`);
+  }, [wallet, refetch, showToast]);
+
+  // ── Update (re-verify) a platform ──
+  const handleUpdate = useCallback((platform: Platform) => {
+    if (!wallet) return;
+    removeProofFromStorage(wallet, platform);
+    refetch();
+    if (platform === "github") {
+      localStorage.setItem("verifyme_pending_wallet", wallet);
+      window.location.href = `/api/github?wallet=${wallet}`;
+    } else if (platform === "discord") {
+      localStorage.setItem("verifyme_pending_wallet", wallet);
+      window.location.href = `/api/discord?wallet=${wallet}`;
+    } else if (platform === "farcaster") {
+      showToast("success", "Ready", "Click Connect Farcaster to re-verify.");
     }
   }, [wallet, refetch, showToast]);
 
+  // ── Disconnect all ──
+  const handleDisconnectAll = useCallback(async () => {
+    if (!wallet) return;
+    const platforms: Platform[] = ["github", "discord", "farcaster"];
+    platforms.forEach(p => removeProofFromStorage(wallet, p));
+    await Promise.all(platforms.map(p =>
+      fetch("/api/proof", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wallet, platform: p }),
+      }).catch(() => {})
+    ));
+    await refetch();
+    showToast("success", "Disconnected", "All verifications removed.");
+  }, [wallet, refetch, showToast]);
+
+  // ── Not connected ──
   if (!connected || !wallet) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "100px 24px 40px" }}>
@@ -90,22 +188,14 @@ function VerifyDashboard() {
           <div style={{ width: "48px", height: "48px", borderRadius: "14px", background: "var(--bg-elevated)", border: "1px solid var(--border-default)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
             <Lock size={20} style={{ color: "var(--text-muted)" }} />
           </div>
-          <h2 style={{ fontSize: "22px", fontWeight: 600, letterSpacing: "-0.01em", color: "var(--text-primary)", marginBottom: "10px" }}>
-            Connect your wallet
-          </h2>
+          <h2 style={{ fontSize: "22px", fontWeight: 600, letterSpacing: "-0.01em", color: "var(--text-primary)", marginBottom: "10px" }}>Connect your wallet</h2>
           <p style={{ fontSize: "14px", color: "var(--text-secondary)", marginBottom: "24px", lineHeight: 1.65 }}>
             VerifyMe works with SVM wallets. Your private key never leaves your device.
           </p>
-          <button
-            onClick={() => setVisible(true)}
-            style={{ width: "100%", height: "44px", borderRadius: "10px", background: "var(--accent)", color: "var(--text-inverse)", border: "none", cursor: "pointer", fontSize: "15px", fontWeight: 500, fontFamily: "inherit", transition: "background 0.12s ease" }}
-            className="btn-primary"
-          >
+          <button onClick={() => setVisible(true)} style={{ width: "100%", height: "44px", borderRadius: "10px", background: "var(--accent)", color: "var(--text-inverse)", border: "none", cursor: "pointer", fontSize: "15px", fontWeight: 500, fontFamily: "inherit" }} className="btn-primary">
             Connect wallet
           </button>
-          <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "14px" }}>
-            Rialo is SVM-compatible — Solana wallets work natively
-          </p>
+          <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "14px" }}>Rialo is SVM-compatible — Solana wallets work natively</p>
         </div>
       </div>
     );
@@ -143,13 +233,19 @@ function VerifyDashboard() {
             </div>
             <Divider my="16px" />
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <a href={`/profile/${wallet}`} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", height: "38px", borderRadius: "10px", fontSize: "14px", fontWeight: 500, background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border-default)", transition: "color 0.12s ease, background 0.12s ease" }} className="btn-ghost">
+              <a href={`/profile/${wallet}`} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", height: "38px", borderRadius: "10px", fontSize: "14px", fontWeight: 500, background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border-default)" }} className="btn-ghost">
                 View public profile <ExternalLink size={12} />
               </a>
               <button onClick={() => copyLink(profileUrl)} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", height: "38px", borderRadius: "10px", fontSize: "14px", fontWeight: 500, background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border-default)", cursor: "pointer", fontFamily: "inherit" }} className="btn-ghost">
                 <Copy size={13} />
                 {linkCopied ? "Copied!" : "Copy profile link"}
               </button>
+              {verifiedCount > 0 && (
+                <button onClick={handleDisconnectAll} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", height: "38px", borderRadius: "10px", fontSize: "14px", fontWeight: 500, background: "transparent", color: "var(--error, #f87171)", border: "1px solid rgba(248,113,113,0.3)", cursor: "pointer", fontFamily: "inherit" }}>
+                  <LogOut size={13} />
+                  Disconnect all
+                </button>
+              )}
             </div>
             <Divider my="16px" />
             <div>
@@ -177,6 +273,7 @@ function VerifyDashboard() {
                 verifications={verifications}
                 wallet={wallet}
                 onRevoke={handleRevoke}
+                onUpdate={handleUpdate}
                 onFarcasterConnect={handleFarcasterConnect}
               />
             )}
@@ -204,6 +301,3 @@ export default function VerifyPage() {
     </Suspense>
   );
 }
-
-
-

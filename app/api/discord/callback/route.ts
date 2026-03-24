@@ -7,7 +7,7 @@ function sha256(input: string): string {
     hash = ((hash << 5) - hash) + char;
     hash = hash & hash;
   }
-  return Math.abs(hash).toString(16).padStart(8, '0').repeat(8).slice(0, 64);
+  return Math.abs(hash).toString(16).padStart(8, "0").repeat(8).slice(0, 64);
 }
 
 function maskUsername(username: string): string {
@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
   try {
     let username = "mockuser";
     let id = "123456789";
+    let avatar = "";
 
     if (!mock) {
       if (!code) throw new Error("No code provided");
@@ -40,17 +41,19 @@ export async function GET(req: NextRequest) {
           redirect_uri: process.env.DISCORD_REDIRECT_URI || `${appUrl}/api/discord/callback`,
         }),
       });
-
       const tokenData = await tokenRes.json();
       if (tokenData.error) throw new Error(tokenData.error_description || tokenData.error);
 
       const userRes = await fetch("https://discord.com/api/users/@me", {
         headers: { Authorization: `Bearer ${tokenData.access_token}` },
       });
-
       const user = await userRes.json();
       username = user.username;
       id = user.id;
+      // Build CDN avatar URL (fallback to default if no avatar set)
+      avatar = user.avatar
+        ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`
+        : `https://cdn.discordapp.com/embed/avatars/${Number(user.discriminator || 0) % 5}.png`;
     }
 
     const proofHash = sha256(wallet + id);
@@ -63,6 +66,7 @@ export async function GET(req: NextRequest) {
       proofHash,
       usernameHash,
       maskedUsername,
+      pfpUrl: avatar,
       wallet,
     });
 
@@ -72,7 +76,3 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${appUrl}/verify?error=true&platform=discord&message=${encodeURIComponent(msg)}`);
   }
 }
-
-
-
-

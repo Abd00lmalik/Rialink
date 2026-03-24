@@ -1,7 +1,7 @@
 ﻿"use client";
 import { useState, useCallback } from "react";
 import dynamic from "next/dynamic";
-import { Copy, Check, ExternalLink } from "lucide-react";
+import { Copy, Check, ExternalLink, RefreshCw, Unlink } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
@@ -57,11 +57,12 @@ interface VerificationCardProps {
   wallet: string;
   readOnly?: boolean;
   onRevoke?: (platform: Platform) => Promise<void>;
+  onUpdate?: (platform: Platform) => void;
   onConnect?: (platform: Platform) => void;
   onFarcasterConnect?: (data: { fid: number; username: string; custody: string; signature: string }) => void;
 }
 
-export function VerificationCard({ state, wallet, readOnly = false, onRevoke, onConnect, onFarcasterConnect }: VerificationCardProps) {
+export function VerificationCard({ state, wallet, readOnly = false, onRevoke, onUpdate, onConnect, onFarcasterConnect }: VerificationCardProps) {
   const { platform, status, proof, error } = state;
   const Icon = PLATFORM_ICONS[platform];
   const color = PLATFORM_COLORS[platform];
@@ -110,10 +111,7 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
               {PLATFORM_DESCRIPTION[platform]}
             </p>
             {platform === "farcaster" ? (
-              <FarcasterSignIn
-                onSuccess={(data) => onFarcasterConnect?.(data)}
-                onError={() => {}}
-              />
+              <FarcasterSignIn onSuccess={(data) => onFarcasterConnect?.(data)} onError={() => {}} />
             ) : (
               <button onClick={handleConnect} className="btn-primary" style={{ width: "100%", height: "38px", borderRadius: "10px", background: "var(--accent)", color: "var(--text-inverse)", border: "none", cursor: "pointer", fontSize: "14px", fontWeight: 500, fontFamily: "inherit" }}>
                 Connect {platform.charAt(0).toUpperCase() + platform.slice(1)}
@@ -132,48 +130,46 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
         )}
 
         {status === "pending" && (
-          <div style={{ marginTop: "12px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <Spinner size={14} color={color} />
-              <span style={{ fontSize: "14px", color: "var(--text-secondary)" }}>Connecting...</span>
-            </div>
+          <div style={{ marginTop: "12px", display: "flex", alignItems: "center", gap: "8px" }}>
+            <Spinner size={14} color={color} />
+            <span style={{ fontSize: "14px", color: "var(--text-secondary)" }}>Connecting...</span>
           </div>
         )}
 
         {status === "verified" && proof && (
           <div style={{ marginTop: "12px" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
-              <div>
-                <p style={{ fontSize: "11px", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "4px" }}>Username</p>
-                <p style={{ fontSize: "14px", fontFamily: "monospace", color: "var(--text-primary)" }}>{proof.maskedUsername}</p>
-              </div>
-              <div>
-                {platform === "github" && proof.repoCount !== undefined && (
-                  <div>
-                    <p style={{ fontSize: "11px", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "4px" }}>Repositories</p>
-                    <p style={{ fontSize: "14px", color: "var(--text-primary)" }}>{proof.repoCount} public repos</p>
-                  </div>
-                )}
-                {platform === "farcaster" && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    {proof.pfpUrl && (
-                      <img src={proof.pfpUrl} alt="pfp" style={{ width: "40px", height: "40px", borderRadius: "50%", objectFit: "cover", border: "2px solid var(--border-subtle)" }} />
-                    )}
-                    <div>
-                      <p style={{ fontSize: "11px", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "4px" }}>Followers</p>
-                      <p style={{ fontSize: "14px", color: "var(--text-primary)" }}>{proof.followerCount ?? 0}</p>
-                    </div>
-                  </div>
-                )}
-                {platform === "discord" && (
-                  <div>
-                    <p style={{ fontSize: "11px", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "4px" }}>Verified</p>
-                    <p style={{ fontSize: "14px", color: "var(--text-primary)" }}>{formatDate(proof.verifiedAt)}</p>
-                  </div>
-                )}
+
+            {/* Profile row — pfp + username + meta */}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "14px", padding: "12px", background: "var(--bg-elevated)", borderRadius: "10px", border: "1px solid var(--border-subtle)" }}>
+              {proof.pfpUrl ? (
+                <img src={proof.pfpUrl} alt="avatar" style={{ width: "44px", height: "44px", borderRadius: "50%", objectFit: "cover", border: "2px solid var(--border-default)", flexShrink: 0 }} />
+              ) : (
+                <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", fontWeight: 700, color: "#fff", flexShrink: 0, opacity: 0.8 }}>
+                  {proof.maskedUsername?.[0]?.toUpperCase() || "?"}
+                </div>
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "monospace", marginBottom: "2px" }}>
+                  {proof.maskedUsername}
+                </p>
+                <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                  {platform === "github" && proof.repoCount !== undefined && (
+                    <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{proof.repoCount} public repos</span>
+                  )}
+                  {platform === "farcaster" && proof.followerCount !== undefined && (
+                    <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{proof.followerCount} followers</span>
+                  )}
+                  {platform === "discord" && (
+                    <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Discord account</span>
+                  )}
+                  <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                    Verified {formatDate(proof.verifiedAt)}
+                  </span>
+                </div>
               </div>
             </div>
 
+            {/* Proof hash */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "8px 12px", marginBottom: "12px" }}>
               <div>
                 <p style={{ fontSize: "11px", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "2px" }}>Proof Hash</p>
@@ -184,13 +180,20 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
               </button>
             </div>
 
+            {/* Actions */}
             {!readOnly && (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "12px" }}>
                 <a href={`${EXPLORER_URL}/tx/${proof.txSignature || "mock"}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: "12px", color: "var(--accent-text)", display: "flex", alignItems: "center", gap: "4px" }}>
                   View on Explorer <ExternalLink size={11} />
                 </a>
-                <button onClick={() => setShowRevokeModal(true)} className="revoke-btn" style={{ fontSize: "12px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>
-                  Revoke
+                <button
+                  onClick={() => onUpdate?.(platform)}
+                  style={{ fontSize: "12px", color: "var(--text-secondary)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "4px" }}
+                >
+                  <RefreshCw size={11} /> Refresh
+                </button>
+                <button onClick={() => setShowRevokeModal(true)} className="revoke-btn" style={{ fontSize: "12px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "4px" }}>
+                  <Unlink size={11} /> Disconnect
                 </button>
               </div>
             )}
@@ -210,19 +213,18 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
         )}
       </div>
 
-      <Modal open={showRevokeModal} onClose={() => setShowRevokeModal(false)} title="Revoke verification?"
+      <Modal open={showRevokeModal} onClose={() => setShowRevokeModal(false)} title="Disconnect verification?"
         footer={
           <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
             <Button variant="ghost" onClick={() => setShowRevokeModal(false)}>Cancel</Button>
-            <Button variant="danger-ghost" loading={revoking} onClick={handleRevoke}>Revoke</Button>
+            <Button variant="danger-ghost" loading={revoking} onClick={handleRevoke}>Disconnect</Button>
           </div>
         }
       >
         <p style={{ fontSize: "14px", color: "var(--text-secondary)", lineHeight: 1.65 }}>
-          This will remove your {platform.charAt(0).toUpperCase() + platform.slice(1)} verification from the Rialo blockchain. This action cannot be undone.
+          This will remove your {platform.charAt(0).toUpperCase() + platform.slice(1)} verification. You can reconnect at any time.
         </p>
       </Modal>
     </div>
   );
 }
-
