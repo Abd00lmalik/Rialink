@@ -24,7 +24,7 @@ function VerifyDashboard() {
   const { publicKey, connected } = useWallet();
   const { setVisible } = useWalletModal();
   const wallet = publicKey?.toBase58() || null;
-  const { verifications, isLoading, refetch } = useVerifications(wallet);
+  const { verifications, setVerifications, isLoading, refetch } = useVerifications(wallet);
   const { toasts, showToast, dismissToast } = useToast();
   const { copy: copyLink, copied: linkCopied } = useCopyToClipboard();
   const searchParams = useSearchParams();
