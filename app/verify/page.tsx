@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Suspense, useCallback, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -35,7 +35,7 @@ function VerifyDashboard() {
     showToast("success", "Verified!", "Your identity has been linked on-chain.");
   });
 
-  // ── Handle OAuth callback params (GitHub + Discord redirects back here) ──
+  // â”€â”€ Handle OAuth callback params (GitHub + Discord redirects back here) â”€â”€
   useEffect(() => {
     const success = searchParams.get("success");
     const platform = searchParams.get("platform") as Platform | null;
@@ -94,7 +94,7 @@ function VerifyDashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  // ── Farcaster (no OAuth redirect — handled inline) ──
+  // â”€â”€ Farcaster (no OAuth redirect â€” handled inline) â”€â”€
   const handleFarcasterConnect = useCallback(async (data: {
     fid: number;
     username: string;
@@ -137,7 +137,7 @@ function VerifyDashboard() {
     }
   }, [wallet, refetch, showToast]);
 
-  // ── Disconnect single platform ──
+  // â”€â”€ Disconnect single platform â”€â”€
   const handleRevoke = useCallback(async (platform: Platform) => {
     if (!wallet) return;
     removeProofFromStorage(wallet, platform);
@@ -150,7 +150,7 @@ function VerifyDashboard() {
     showToast("success", "Disconnected", `${platform} verification removed.`);
   }, [wallet, refetch, showToast]);
 
-  // ── Update (re-verify) a platform ──
+  // â”€â”€ Update (re-verify) a platform â”€â”€
   const handleUpdate = useCallback((platform: Platform) => {
     if (!wallet) return;
     removeProofFromStorage(wallet, platform);
@@ -166,7 +166,7 @@ function VerifyDashboard() {
     }
   }, [wallet, refetch, showToast]);
 
-  // ── Disconnect all ──
+  // â”€â”€ Disconnect all â”€â”€
   const handleDisconnectAll = useCallback(async () => {
     if (!wallet) return;
     const platforms: Platform[] = ["github", "discord", "farcaster"];
@@ -182,7 +182,7 @@ function VerifyDashboard() {
     showToast("success", "Disconnected", "All verifications removed.");
   }, [wallet, refetch, showToast]);
 
-  // ── Not connected ──
+  // â”€â”€ Not connected â”€â”€
   if (!connected || !wallet) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "100px 24px 40px" }}>
@@ -197,7 +197,7 @@ function VerifyDashboard() {
           <button onClick={() => setVisible(true)} style={{ width: "100%", height: "44px", borderRadius: "10px", background: "var(--accent)", color: "var(--text-inverse)", border: "none", cursor: "pointer", fontSize: "15px", fontWeight: 500, fontFamily: "inherit" }} className="btn-primary">
             Connect wallet
           </button>
-          <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "14px" }}>Rialo is SVM-compatible — Solana wallets work natively</p>
+          <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "14px" }}>Rialo is SVM-compatible â€” Solana wallets work natively</p>
         </div>
       </div>
     );
@@ -244,7 +244,7 @@ function VerifyDashboard() {
               </button>
               {verifiedCount > 0 && (
                 <a href={`/certificate/${wallet}`} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", height: "38px", borderRadius: "10px", fontSize: "14px", fontWeight: 500, background: "var(--accent)", color: "var(--text-inverse)", border: "none", textDecoration: "none" }} className="btn-primary">
-                  ✓ View Certificate
+                  âœ“ View VM Card
                 </a>
               )}
               {verifiedCount > 0 && (
@@ -258,7 +258,7 @@ function VerifyDashboard() {
             <div>
               <p style={{ fontSize: "11px", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "4px" }}>Network</p>
               <p style={{ fontSize: "13px", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "5px" }}>
-                <span style={{ color: "var(--success)", fontSize: "10px" }}>●</span>
+                <span style={{ color: "var(--success)", fontSize: "10px" }}>â—</span>
                 Rialo Devnet
               </p>
             </div>
@@ -289,12 +289,12 @@ function VerifyDashboard() {
               <div style={{ marginTop: "24px", background: "linear-gradient(135deg, #0D1117 0%, #0E1520 100%)", border: "1px solid rgba(92,225,230,0.25)", borderRadius: "14px", padding: "20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div>
                   <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px" }}>
-                    {verifiedCount === 3 ? "🎉 Fully Verified Builder" : `${verifiedCount} of 3 platforms verified`}
+                    {verifiedCount === 3 ? "ðŸŽ‰ Fully Verified Builder" : `${verifiedCount} of 3 platforms verified`}
                   </p>
-                  <p style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Share your certificate with the world</p>
+                  <p style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Share your VM Card with the world</p>
                 </div>
                 <a href={`/certificate/${wallet}`} style={{ flexShrink: 0, height: "38px", padding: "0 16px", borderRadius: "10px", background: "var(--accent)", color: "var(--text-inverse)", fontSize: "14px", fontWeight: 500, display: "flex", alignItems: "center", gap: "6px", textDecoration: "none" }}>
-                  View Certificate →
+                  View VM Card â†’
                 </a>
               </div>
             )}
@@ -321,5 +321,6 @@ export default function VerifyPage() {
     </Suspense>
   );
 }
+
 
 

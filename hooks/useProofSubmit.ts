@@ -1,7 +1,8 @@
-﻿import type { Platform, ProofRecord } from "@/lib/types";
-"use client";
+﻿"use client";
+
 import { useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
+import type { Platform, ProofRecord } from "@/lib/types";
 import { saveProofToStorage } from "./useVerifications";
 
 export function useProofSubmit(onSuccess?: () => void) {
@@ -10,6 +11,7 @@ export function useProofSubmit(onSuccess?: () => void) {
 
   useEffect(() => {
     if (processed.current) return;
+
     const success = searchParams.get("success");
     const platform = searchParams.get("platform");
     const proofHash = searchParams.get("proofHash");
@@ -17,6 +19,8 @@ export function useProofSubmit(onSuccess?: () => void) {
     const wallet = searchParams.get("wallet") || localStorage.getItem("verifyme_pending_wallet");
     const repoCount = searchParams.get("repoCount");
     const followerCount = searchParams.get("followerCount");
+    const pfpUrl = searchParams.get("pfpUrl") || "";
+    const accountCreatedAt = searchParams.get("accountCreatedAt") || "";
 
     if (success !== "true" || !platform || !proofHash || !wallet) return;
     processed.current = true;
@@ -28,28 +32,35 @@ export function useProofSubmit(onSuccess?: () => void) {
       usernameHash: "",
       maskedUsername: maskedUsername || "",
       verifiedAt: new Date().toISOString(),
-      ...(repoCount ? { repoCount: parseInt(repoCount) } : {}),
-      ...(followerCount ? { followerCount: parseInt(followerCount) } : {}),
+      ...(repoCount ? { repoCount: parseInt(repoCount, 10) } : {}),
+      ...(followerCount ? { followerCount: parseInt(followerCount, 10) } : {}),
+      ...(pfpUrl ? { pfpUrl } : {}),
+      ...(accountCreatedAt ? { accountCreatedAt } : {}),
     };
 
-    // Save to localStorage immediately
     saveProofToStorage(wallet, proof);
 
-    // Also save to server
     fetch("/api/proof", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(proof),
     }).catch(() => {});
 
-    // Clean URL
     const url = new URL(window.location.href);
-    ["success","platform","proofHash","usernameHash","maskedUsername","wallet","repoCount","followerCount"].forEach(k => url.searchParams.delete(k));
+    [
+      "success",
+      "platform",
+      "proofHash",
+      "usernameHash",
+      "maskedUsername",
+      "wallet",
+      "repoCount",
+      "followerCount",
+      "pfpUrl",
+      "accountCreatedAt"
+    ].forEach((k) => url.searchParams.delete(k));
     window.history.replaceState({}, "", url.toString());
 
     onSuccess?.();
   }, [searchParams, onSuccess]);
 }
-
-
-
