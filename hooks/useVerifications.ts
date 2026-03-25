@@ -1,28 +1,41 @@
 ﻿"use client";
-import { useState, useEffect, useCallback } from "react";
-import type { VerificationState, Platform } from "@/lib/types";
+import { useEffect, useState, useRef, useCallback } from "react";
+import type { VerificationState, ProofRecord, Platform } from "@/lib/types";
 
-const PLATFORMS: Platform[] = ["github", "discord", "farcaster"];
+const PLATFORMS = ["github", "discord", "farcaster"] as const;
+const LS_PREFIX = "verifyme_proof_";
 
-function getStorageKey(wallet: string) {
-  return `verifyme_proofs_${wallet}`;
-}
-
-export function saveProofToStorage(wallet: string, proof: any) {
+// ── localStorage helpers (survive OAuth redirects) ──
+export function saveProofToStorage(wallet: string, proof: ProofRecord) {
   try {
-    const key = getStorageKey(wallet);
-    const existing = JSON.parse(localStorage.getItem(key) || "[]");
-    const filtered = existing.filter((p: any) => p.platform !== proof.platform);
+    const key = LS_PREFIX + wallet;
+    const existing: ProofRecord[] = JSON.parse(localStorage.getItem(key) || "[]");
+    const filtered = existing.filter((p) => p.platform !== proof.platform);
     localStorage.setItem(key, JSON.stringify([...filtered, proof]));
   } catch {}
 }
 
 export function removeProofFromStorage(wallet: string, platform: Platform) {
   try {
-    const key = getStorageKey(wallet);
-    const existing = JSON.parse(localStorage.getItem(key) || "[]");
-    localStorage.setItem(key, JSON.stringify(existing.filter((p: any) => p.platform !== platform)));
+    const key = LS_PREFIX + wallet;
+    const existing: ProofRecord[] = JSON.parse(localStorage.getItem(key) || "[]");
+    localStorage.setItem(key, JSON.stringify(existing.filter((p) => p.platform !== platform)));
   } catch {}
+}
+
+function loadFromStorage(wallet: string): ProofRecord[] {
+  try {
+    return JSON.parse(localStorage.getItem(LS_PREFIX + wallet) || "[]");
+  } catch { return []; }
+}
+
+function toStates(proofs: ProofRecord[]): VerificationState[] {
+  return PLATFORMS.map((p) => {
+    const proof = proofs.find((r) => r.platform === p);
+    return proof
+      ? { platform: p, status: "verified" as const, proof }
+      : { platform: p, status: "unverified" as const };
+  });
 }
 
 export function useVerifications(wallet: string | null) {
@@ -30,51 +43,69 @@ export function useVerifications(wallet: string | null) {
     PLATFORMS.map((p) => ({ platform: p, status: "unverified" as const }))
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const lastWalletRef = useRef<string | null>(null);
+  const hasMountedRef = useRef(false);
 
-  const buildStates = useCallback((proofs: any[]): VerificationState[] => {
-    return PLATFORMS.map((platform) => {
-      const proof = proofs.find((p) => p.platform === platform);
-      return proof
-        ? { platform, status: "verified" as const, proof }
-        : { platform, status: "unverified" as const };
-    });
-  }, []);
+  const fetch_ = useCallback(async (addr: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // 1. Show localStorage data immediately (no flicker)
+      const cached = loadFromStorage(addr);
+      if (cached.length > 0) setVerifications(toStates(cached));
 
-  const refetch = useCallback(async () => {
-    if (!wallet) return;
-    // Load from localStorage immediately
-    try {
-      const cached = JSON.parse(localStorage.getItem(getStorageKey(wallet)) || "[]");
-      if (cached.length > 0) setVerifications(buildStates(cached));
-    } catch {}
-    // Then sync with server
-    try {
-      const res = await fetch(`/api/proof?wallet=${wallet}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.proofs?.length > 0) {
-          localStorage.setItem(getStorageKey(wallet), JSON.stringify(data.proofs));
-          setVerifications(buildStates(data.proofs));
+      // 2. Then fetch from server and merge
+      const res = await fetch(`/api/proof?wallet=${addr}`);
+      const data = await res.json();
+      const serverProofs: ProofRecord[] = data.proofs || [];
+
+      // Merge: server wins, but keep any localStorage entries server doesn't have yet
+      const merged = [...serverProofs];
+      const cachedFresh = loadFromStorage(addr);
+      for (const lp of cachedFresh) {
+        if (!merged.find((sp) => sp.platform === lp.platform)) {
+          merged.push(lp);
         }
       }
-    } catch {}
-  }, [wallet, buildStates]);
+
+      setVerifications(toStates(merged));
+      lastWalletRef.current = addr;
+    } catch (e) {
+      // On network error, fall back to localStorage so UI stays populated
+      const cached = loadFromStorage(addr);
+      setVerifications(toStates(cached));
+      setError(String(e));
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (!wallet) {
-      setVerifications(PLATFORMS.map((p) => ({ platform: p, status: "unverified" as const })));
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      // On first mount, check localStorage for any wallet (covers post-OAuth redirect)
+      const pendingWallet = typeof window !== "undefined"
+        ? localStorage.getItem("verifyme_pending_wallet")
+        : null;
+      const addr = wallet || pendingWallet;
+      if (addr) {
+        fetch_(addr);
+        lastWalletRef.current = addr;
+      }
       return;
     }
-    setIsLoading(true);
-    // Load from localStorage first (instant)
-    try {
-      const cached = JSON.parse(localStorage.getItem(getStorageKey(wallet)) || "[]");
-      setVerifications(buildStates(cached));
-    } catch {}
-    setIsLoading(false);
-    // Background sync with server
-    refetch();
-  }, [wallet, buildStates, refetch]);
+    // After mount: only re-fetch when wallet actually changes to a real address
+    // Do NOT clear when wallet goes null (covers the OAuth redirect reconnect window)
+    if (wallet && wallet !== lastWalletRef.current) {
+      fetch_(wallet);
+    }
+  }, [wallet, fetch_]);
 
-  return { verifications, isLoading, refetch };
+  const refetch = useCallback(() => {
+    const addr = wallet || lastWalletRef.current;
+    if (addr) fetch_(addr);
+  }, [wallet, fetch_]);
+
+  return { verifications, setVerifications, isLoading, error, refetch };
 }

@@ -173,31 +173,20 @@ export default function CertificatePage({ params }: { params: { wallet: string }
         </div>
 
         <div style={{ marginTop: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
-          {count > 0 && (
-            <button
-              onClick={handleMint}
-              disabled={minting || minted}
-              style={{ width: "100%", height: "48px", borderRadius: "12px", background: minted ? "rgba(52,211,153,0.15)" : "linear-gradient(135deg, #5CE1E6, #7C3AED)", border: minted ? "1px solid rgba(52,211,153,0.3)" : "none", color: minted ? "#34D399" : "#fff", fontSize: "15px", fontWeight: 600, cursor: minting || minted ? "default" : "pointer", fontFamily: "inherit", letterSpacing: "-0.01em", transition: "all 0.2s ease", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
-            >
-              {minting ? (
-                <><span style={{ display: "inline-block", width: "14px", height: "14px", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Minting on Rialo...</>
-              ) : minted ? (
-                <>✓ Minted Successfully</>
-              ) : (
-                <>◆ Mint as Soulbound NFT</>
-              )}
-            </button>
-          )}
 
-          <div style={{ display: "flex", gap: "8px" }}>
-            <a href={"https://twitter.com/intent/tweet?text=" + tweetText + "&url=" + tweetUrl} target="_blank" rel="noopener noreferrer" style={{ flex: 1, height: "42px", borderRadius: "10px", background: "#000", border: "1px solid #2a2a2a", color: "#fff", fontSize: "13px", fontWeight: 500, display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", textDecoration: "none" }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.741l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-              Share on X
-            </a>
-            <button onClick={copyLink} style={{ flex: 1, height: "42px", borderRadius: "10px", background: "transparent", border: "1px solid var(--border-default)", color: copied ? "var(--success)" : "var(--text-secondary)", fontSize: "13px", fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
-              {copied ? "✓ Copied!" : "Copy link"}
-            </button>
-          </div>
+
+          
+            href={"https://twitter.com/intent/tweet?text=" + encodeURIComponent("Just verified my builder identity on-chain using @VerifyMe — built on @RialoProtocol. " + count + "/3 identities cryptographically proven. No personal data stored. Just proof.\n\nThis is what Web3 identity should look like 🔐") + "&url=" + tweetUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", width: "100%", height: "48px", borderRadius: "12px", background: "#000", border: "1px solid #2a2a2a", color: "#fff", fontSize: "14px", fontWeight: 600, textDecoration: "none", letterSpacing: "-0.01em" }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.741l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            Share on X
+          </a>
+          <button onClick={copyLink} style={{ width: "100%", height: "42px", borderRadius: "10px", background: "transparent", border: "1px solid var(--border-default)", color: copied ? "var(--success)" : "var(--text-secondary)", fontSize: "13px", fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
+            {copied ? "✓ Copied!" : "Copy link"}
+          </button>
 
           <div style={{ display: "flex", justifyContent: "center", gap: "20px", marginTop: "4px" }}>
             <a href={"/profile/" + wallet} style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>View profile →</a>
