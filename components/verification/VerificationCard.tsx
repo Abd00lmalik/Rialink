@@ -47,9 +47,9 @@ const PLATFORM_DESCRIPTION: Record<Platform, string> = {
   farcaster: "Native Web3 identity. Sign in with your wallet via Farcaster. No OAuth keys needed.",
 };
 const PLATFORM_NOTE: Record<Platform, string> = {
-  github: "OAuth 2.0 · read-only access · no passwords stored",
-  discord: "OAuth 2.0 · read-only access · no passwords stored",
-  farcaster: "Sign In With Farcaster · wallet-based · no API keys",
+  github: "OAuth 2.0  read-only access  no passwords stored",
+  discord: "OAuth 2.0  read-only access  no passwords stored",
+  farcaster: "Sign In With Farcaster  wallet-based  no API keys",
 };
 
 interface VerificationCardProps {
@@ -139,7 +139,7 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
         {status === "verified" && proof && (
           <div style={{ marginTop: "12px" }}>
 
-            {/* Profile row — pfp + username + meta */}
+            {/* Profile row  pfp + username + meta */}
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "14px", padding: "12px", background: "var(--bg-elevated)", borderRadius: "10px", border: "1px solid var(--border-subtle)" }}>
               {proof.pfpUrl ? (
                 <img src={proof.pfpUrl} alt="avatar" style={{ width: "44px", height: "44px", borderRadius: "50%", objectFit: "cover", border: "2px solid var(--border-default)", flexShrink: 0 }} />
@@ -230,5 +230,6 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
     </div>
   );
 }
+
 
 

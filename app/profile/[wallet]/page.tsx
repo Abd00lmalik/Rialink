@@ -214,7 +214,7 @@ export default function ProfilePage({ params }: PageProps) {
               Network
             </p>
             <p style={{ fontSize: "13px", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "5px" }}>
-              <span style={{ color: "var(--success)", fontSize: "10px" }}>•</span>
+              <span style={{ color: "var(--success)", fontSize: "10px" }}></span>
               Rialo Devnet
             </p>
           </div>
@@ -303,3 +303,4 @@ export default function ProfilePage({ params }: PageProps) {
     </div>
   );
 }
+

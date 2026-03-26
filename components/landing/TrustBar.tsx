@@ -42,7 +42,7 @@ export function TrustBar() {
         {items.map(({ label, value }) => (
           <div key={label}>
             <p style={{ fontSize: "32px", fontWeight: 700, letterSpacing: "-0.03em", color: "var(--text-primary)", marginBottom: "4px" }}>
-              {loaded ? <Counter value={value} /> : "—"}
+              {loaded ? <Counter value={value} /> : ""}
             </p>
             <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>{label}</p>
           </div>
@@ -51,3 +51,4 @@ export function TrustBar() {
     </section>
   );
 }
+

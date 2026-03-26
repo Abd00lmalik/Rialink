@@ -1,12 +1,7 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
+import { computeProofHash, computeUsernameHash } from "@/lib/proof-hash";
 
-const APP_URL = "https://verifyme-two.vercel.app";
-
-function hash(input: string): string {
-  let h = 0;
-  for (let i = 0; i < input.length; i++) h = ((h << 5) - h + input.charCodeAt(i)) | 0;
-  return Math.abs(h).toString(16).padStart(8, "0").repeat(8).slice(0, 64);
-}
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://verifyme-two.vercel.app";
 
 function maskUsername(username: string): string {
   if (!username || username.length <= 4) return username;
@@ -23,15 +18,14 @@ async function getCommitCount(login: string, token: string): Promise<number> {
       },
       cache: "no-store",
     });
+
     if (!res.ok) return 0;
     const events = await res.json();
     if (!Array.isArray(events)) return 0;
 
     let commits = 0;
     for (const ev of events) {
-      if (ev?.type === "PushEvent" && Array.isArray(ev?.payload?.commits)) {
-        commits += ev.payload.commits.length;
-      }
+      if (ev?.type === "PushEvent" && Array.isArray(ev?.payload?.commits)) commits += ev.payload.commits.length;
     }
     return commits;
   } catch {
@@ -42,57 +36,52 @@ async function getCommitCount(login: string, token: string): Promise<number> {
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code");
-  const wallet = searchParams.get("state") || searchParams.get("wallet") || "unknown";
-  const mock = searchParams.get("mock");
+  const wallet = searchParams.get("state") || searchParams.get("wallet");
 
   try {
-    let login = "mockdev77";
-    let id = 123456;
-    let publicRepos = 47;
-    let commitCount = 130;
-    let avatarUrl = "https://avatars.githubusercontent.com/u/9919?v=4";
+    if (!wallet) throw new Error("Missing wallet address");
+    if (!code) throw new Error("No code provided");
 
-    if (!mock) {
-      if (!code) throw new Error("No code provided");
+    const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        client_id: process.env.GITHUB_CLIENT_ID,
+        client_secret: process.env.GITHUB_CLIENT_SECRET,
+        code,
+        redirect_uri: process.env.GITHUB_REDIRECT_URI || `${APP_URL}/api/github/callback`,
+      }),
+    });
 
-      const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          client_id: process.env.GITHUB_CLIENT_ID,
-          client_secret: process.env.GITHUB_CLIENT_SECRET,
-          code,
-          redirect_uri: process.env.GITHUB_REDIRECT_URI || `${APP_URL}/api/github/callback`,
-        }),
-      });
-      const tokenData = await tokenRes.json();
-      if (tokenData.error) throw new Error(tokenData.error_description || tokenData.error);
+    const tokenData = await tokenRes.json();
+    if (tokenData.error) throw new Error(tokenData.error_description || tokenData.error);
 
-      const token = String(tokenData.access_token || "");
-      if (!token) throw new Error("No GitHub token");
+    const token = String(tokenData.access_token || "");
+    if (!token) throw new Error("No GitHub token");
 
-      const userRes = await fetch("https://api.github.com/user", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "User-Agent": "VerifyMe",
-          Accept: "application/vnd.github+json",
-        },
-        cache: "no-store",
-      });
-      const user = await userRes.json();
+    const userRes = await fetch("https://api.github.com/user", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "User-Agent": "VerifyMe",
+        Accept: "application/vnd.github+json",
+      },
+      cache: "no-store",
+    });
 
-      login = user.login;
-      id = user.id;
-      publicRepos = Number(user.public_repos || 0);
-      avatarUrl = user.avatar_url || `https://avatars.githubusercontent.com/u/${id}?v=4`;
-      commitCount = await getCommitCount(login, token);
-    }
+    const user = await userRes.json();
+    const login = String(user?.login || "");
+    const id = String(user?.id || "");
+    const publicRepos = Number(user?.public_repos || 0);
+    const avatarUrl = String(user?.avatar_url || (id ? `https://avatars.githubusercontent.com/u/${id}?v=4` : ""));
+    if (!login || !id) throw new Error("GitHub user lookup failed");
+
+    const commitCount = await getCommitCount(login, token);
 
     const params = new URLSearchParams({
       success: "true",
       platform: "github",
-      proofHash: hash(wallet + String(id)),
-      usernameHash: hash(login),
+      proofHash: computeProofHash({ wallet, platform: "github", platformUserId: id }),
+      usernameHash: computeUsernameHash({ platform: "github", username: login }),
       maskedUsername: maskUsername(login),
       pfpUrl: avatarUrl,
       wallet,
@@ -103,8 +92,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${APP_URL}/verify?${params.toString()}`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.redirect(
-      `${APP_URL}/verify?error=true&platform=github&message=${encodeURIComponent(msg)}`
-    );
+    return NextResponse.redirect(`${APP_URL}/verify?error=true&platform=github&message=${encodeURIComponent(msg)}`);
   }
 }

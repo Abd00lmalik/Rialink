@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 export function Footer() {
   return (
@@ -24,9 +24,10 @@ export function Footer() {
           </div>
         </div>
         <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-          © 2025 VerifyMe · Built on Rialo · Not affiliated with Rialo Protocol · Open source
+           2025 VerifyMe  Built on Rialo  Not affiliated with Rialo Protocol  Open source
         </p>
       </div>
     </footer>
   );
 }
+

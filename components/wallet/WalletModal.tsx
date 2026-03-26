@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
@@ -51,7 +51,7 @@ export function WalletModal() {
               padding: '4px',
             }}
           >
-            ✕
+            
           </button>
         </div>
 

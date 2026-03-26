@@ -45,7 +45,7 @@ export function Navbar() {
           </span>
         </Link>
 
-        {/* Center nav â€” desktop only */}
+        {/* Center nav  desktop only */}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '4px' }} className="hide-mobile">
           {NAV_LINKS.map((link) => (
             <Link
@@ -86,6 +86,7 @@ export function Navbar() {
     </nav>
   );
 }
+
 
 
 

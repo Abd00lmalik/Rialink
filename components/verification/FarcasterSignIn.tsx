@@ -14,7 +14,7 @@ export default function FarcasterSignIn({ onSuccess, onError }: Props) {
   if (done) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "38px", fontSize: "14px", color: "var(--success)" }}>
-        ✓ Farcaster connected — saving...
+         Farcaster connected  saving...
       </div>
     );
   }
@@ -31,3 +31,4 @@ export default function FarcasterSignIn({ onSuccess, onError }: Props) {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import type { Platform } from './types';
+﻿import type { Platform } from './types';
 
 export interface PlatformConfig {
   name: string;
@@ -21,7 +21,7 @@ export const PLATFORM_CONFIG: Record<Platform, PlatformConfig> = {
       'Verify your developer identity. We confirm your username and public repository count.',
     scope: 'read:user',
     tag: 'Developer',
-    authNote: 'OAuth 2.0 · read-only access · no passwords stored',
+    authNote: 'OAuth 2.0  read-only access  no passwords stored',
   },
   discord: {
     name: 'Discord',
@@ -32,7 +32,7 @@ export const PLATFORM_CONFIG: Record<Platform, PlatformConfig> = {
       'Verify your community identity. Confirm your username and account legitimacy.',
     scope: 'identify',
     tag: 'Community',
-    authNote: 'OAuth 2.0 · read-only access · no passwords stored',
+    authNote: 'OAuth 2.0  read-only access  no passwords stored',
   },
   farcaster: {
     name: 'Farcaster',
@@ -43,7 +43,7 @@ export const PLATFORM_CONFIG: Record<Platform, PlatformConfig> = {
       'Native Web3 identity. Sign in with your wallet via Farcaster. No OAuth keys needed.',
     scope: 'wallet-based',
     tag: 'Web3',
-    authNote: 'Sign In With Farcaster · wallet-based',
+    authNote: 'Sign In With Farcaster  wallet-based',
   },
 };
 
@@ -51,3 +51,4 @@ export const CONTRACT_ADDRESS = 'PLACEHOLDER_RIALO_CONTRACT';
 export const EXPLORER_URL = 'https://explorer.rialo.io';
 export const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+

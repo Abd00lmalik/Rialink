@@ -5,7 +5,7 @@ import type { VerificationState, ProofRecord, Platform } from "@/lib/types";
 const PLATFORMS = ["github", "discord", "farcaster"] as const;
 const LS_PREFIX = "verifyme_proof_";
 
-// ── localStorage helpers (survive OAuth redirects) ──
+//  localStorage helpers (survive OAuth redirects) 
 export function saveProofToStorage(wallet: string, proof: ProofRecord) {
   try {
     const key = LS_PREFIX + wallet;
@@ -109,3 +109,4 @@ export function useVerifications(wallet: string | null) {
 
   return { verifications, setVerifications, isLoading, error, refetch };
 }
+

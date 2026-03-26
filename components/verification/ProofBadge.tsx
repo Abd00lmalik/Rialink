@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { Github, MessageSquare, Hexagon, Check } from 'lucide-react';
 import { AddressDisplay } from '@/components/ui/AddressDisplay';
@@ -81,7 +81,7 @@ export function ProofBadge({ wallet, verifications }: ProofBadgeProps) {
       {/* Bottom status */}
       <div style={{ textAlign: 'center' }}>
         {allVerified ? (
-          <span style={{ fontSize: '12px', color: 'var(--success)' }}>✓ Cryptographically verified</span>
+          <span style={{ fontSize: '12px', color: 'var(--success)' }}> Cryptographically verified</span>
         ) : (
           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
             {verifiedCount} of 3 identities verified
@@ -91,3 +91,4 @@ export function ProofBadge({ wallet, verifications }: ProofBadgeProps) {
     </div>
   );
 }
+

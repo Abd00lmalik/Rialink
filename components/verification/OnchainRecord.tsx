@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { Button } from '@/components/ui/Button';
 import { EXPLORER_URL } from '@/lib/constants';
@@ -20,7 +20,7 @@ export function OnchainRecord({ wallet, proofs }: OnchainRecordProps) {
 
   const timestamp = latestProof
     ? new Date(latestProof.verifiedAt).toISOString().replace('T', ' ').slice(0, 19) + ' UTC'
-    : '—';
+    : '';
 
   const rows = [
     { key: 'Network', value: 'Rialo Devnet' },
@@ -28,7 +28,7 @@ export function OnchainRecord({ wallet, proofs }: OnchainRecordProps) {
     { key: 'Transactions', value: `${proofs.length} (one per platform)` },
     { key: 'Latest block', value: `#${LATEST_BLOCK}` },
     { key: 'Timestamp', value: timestamp },
-    { key: 'Status', value: '● Confirmed' },
+    { key: 'Status', value: ' Confirmed' },
   ];
 
   return (
@@ -69,9 +69,10 @@ export function OnchainRecord({ wallet, proofs }: OnchainRecordProps) {
           }}
           className="btn-ghost"
         >
-          View on Rialo Explorer →
+          View on Rialo Explorer 
         </a>
       </div>
     </div>
   );
 }
+

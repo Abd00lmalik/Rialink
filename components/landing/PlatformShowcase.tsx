@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { Github, MessageSquare, Hexagon } from 'lucide-react';
 
@@ -11,7 +11,7 @@ const PLATFORMS = [
     borderColor: '#7C3AED',
     tag: 'Free',
     description: 'Verify your developer identity. We confirm your username and public repository count.',
-    note: 'OAuth 2.0 · read:user scope only',
+    note: 'OAuth 2.0  read:user scope only',
     extraTag: null,
   },
   {
@@ -22,7 +22,7 @@ const PLATFORMS = [
     borderColor: '#5865F2',
     tag: 'Free',
     description: 'Verify your community identity. Confirm your username and account legitimacy.',
-    note: 'OAuth 2.0 · identify scope only',
+    note: 'OAuth 2.0  identify scope only',
     extraTag: null,
   },
   {
@@ -33,7 +33,7 @@ const PLATFORMS = [
     borderColor: '#855DCD',
     tag: 'Free',
     description: 'Native Web3 identity. Sign in with your wallet via Farcaster. No OAuth keys needed.',
-    note: 'Sign In With Farcaster · wallet-based',
+    note: 'Sign In With Farcaster  wallet-based',
     extraTag: 'No API keys',
   },
 ];
@@ -105,3 +105,4 @@ export function PlatformShowcase() {
     </section>
   );
 }
+
