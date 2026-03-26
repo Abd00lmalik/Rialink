@@ -1,18 +1,19 @@
-﻿'use client';
+﻿"use client";
 
-import { useEffect, useState } from 'react';
-import { Copy, Check } from 'lucide-react';
-import { PlatformGrid } from '@/components/verification/PlatformGrid';
-import { ProofBadge } from '@/components/verification/ProofBadge';
-import { OnchainRecord } from '@/components/verification/OnchainRecord';
-import { AddressDisplay } from '@/components/ui/AddressDisplay';
-import { useCopyToClipboard } from '@/hooks/useCopyToClipboard';
-import { generateAvatarColor, formatDate } from '@/lib/utils';
-import { MOCK_WALLET } from '@/lib/mock-data';
-import type { ProofRecord, VerificationState, Platform } from '@/lib/types';
+import { useEffect, useMemo, useState } from "react";
+import { Copy, ExternalLink, LogOut } from "lucide-react";
+import { PlatformGrid } from "@/components/verification/PlatformGrid";
+import { ProofBadge } from "@/components/verification/ProofBadge";
+import { CodeBlock } from "@/components/ui/CodeBlock";
+import { Divider } from "@/components/ui/Divider";
+import { AddressDisplay } from "@/components/ui/AddressDisplay";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import { generateAvatarColor } from "@/lib/utils";
+import { MOCK_WALLET, MOCK_PROOFS } from "@/lib/mock-data";
+import type { ProofRecord, VerificationState, Platform } from "@/lib/types";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-const PLATFORMS: Platform[] = ['github', 'discord', 'farcaster'];
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://verifyme-two.vercel.app";
+const PLATFORMS: Platform[] = ["github", "discord", "farcaster"];
 
 interface PageProps {
   params: { wallet: string };
@@ -20,158 +21,285 @@ interface PageProps {
 
 export default function ProfilePage({ params }: PageProps) {
   const rawWallet = params.wallet;
-  const wallet = rawWallet === 'demo' ? MOCK_WALLET : rawWallet;
+  const isDemo = rawWallet === "demo";
+  const wallet = isDemo ? MOCK_WALLET : rawWallet;
 
   const [proofs, setProofs] = useState<ProofRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { copy: copyUrl, copied: urlCopied } = useCopyToClipboard();
-  const { copy: copyEmbed, copied: embedCopied } = useCopyToClipboard();
+  const { copy: copyLink, copied: linkCopied } = useCopyToClipboard();
 
   useEffect(() => {
+    if (isDemo) {
+      setProofs(MOCK_PROOFS);
+      setIsLoading(false);
+      return;
+    }
+
     fetch(`/api/proof?wallet=${wallet}`)
       .then((r) => r.json())
-      .then((data) => setProofs(data.proofs || []))
+      .then((data) => setProofs(data?.proofs || []))
       .catch(() => setProofs([]))
       .finally(() => setIsLoading(false));
-  }, [wallet]);
+  }, [wallet, isDemo]);
 
-  const verifications: VerificationState[] = PLATFORMS.map((platform) => {
-    const proof = proofs.find((p) => p.platform === platform);
-    return proof
-      ? { platform, status: 'verified' as const, proof }
-      : { platform, status: 'unverified' as const };
-  });
+  const verifications: VerificationState[] = useMemo(
+    () =>
+      PLATFORMS.map((platform) => {
+        const proof = proofs.find((p) => p.platform === platform);
+        return proof
+          ? { platform, status: "verified" as const, proof }
+          : { platform, status: "unverified" as const };
+      }),
+    [proofs]
+  );
 
-  const verifiedCount = verifications.filter((v) => v.status === 'verified').length;
+  const verifiedCount = verifications.filter((v) => v.status === "verified").length;
   const avatarColor = generateAvatarColor(wallet);
-  const profileUrl = `${APP_URL}/profile/${wallet}`;
+  const profileUrl = `${APP_URL}/profile/${rawWallet}`;
   const embedCode = `<iframe src="${APP_URL}/badge/${wallet}" width="340" height="120" frameborder="0"></iframe>`;
 
-  // Date joined: earliest verifiedAt
-  const joinDate = proofs.length > 0
-    ? formatDate(proofs.sort((a, b) => new Date(a.verifiedAt).getTime() - new Date(b.verifiedAt).getTime())[0].verifiedAt)
-    : 'â€”';
+  const handleDemoRevoke = async (_platform: Platform) => {};
+  const handleDemoUpdate = (_platform: Platform) => {};
+  const handleDemoFarcaster = (_data: { fid: number; username: string; custody: string; signature: string }) => {};
+  const handleDemoDisconnectAll = () => {};
 
   return (
-    <div style={{ maxWidth: '680px', margin: '0 auto', padding: '80px 24px 60px' }}>
-      {/* Profile header card */}
-      <div style={{
-        background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)',
-        borderRadius: '20px', padding: '24px', marginBottom: '24px',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{
-            width: '56px', height: '56px', borderRadius: '50%',
-            background: avatarColor, display: 'flex', alignItems: 'center',
-            justifyContent: 'center', fontSize: '22px', fontWeight: 600, color: '#fff',
-            flexShrink: 0,
-          }}>
-            {wallet[0].toUpperCase()}
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-              <AddressDisplay address={wallet} startChars={8} endChars={6} />
+    <div style={{ maxWidth: "960px", margin: "0 auto", padding: "88px 24px 60px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: "24px", alignItems: "start" }}>
+        <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "14px", padding: "20px", position: "sticky", top: "72px" }}>
+          <div style={{ textAlign: "center" }}>
+            <div
+              style={{
+                width: "48px",
+                height: "48px",
+                borderRadius: "50%",
+                background: avatarColor,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "18px",
+                fontWeight: 600,
+                color: "#fff",
+                margin: "0 auto 10px",
+              }}
+            >
+              {wallet[0].toUpperCase()}
             </div>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span style={{ color: 'var(--success)', fontSize: '10px' }}>â—</span>
+            <AddressDisplay address={wallet} />
+          </div>
+
+          <Divider my="16px" />
+
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+              <span style={{ fontSize: "12px", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>
+                Identities
+              </span>
+              <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>{verifiedCount} / 3</span>
+            </div>
+            <div style={{ display: "flex", gap: "3px" }}>
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  style={{
+                    flex: 1,
+                    height: "4px",
+                    borderRadius: "2px",
+                    background: i < verifiedCount ? "var(--success)" : "var(--border-default)",
+                    transition: "background 0.2s ease",
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+
+          <Divider my="16px" />
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <a
+              href={`/profile/${rawWallet}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
+                height: "38px",
+                borderRadius: "10px",
+                fontSize: "14px",
+                fontWeight: 500,
+                background: "transparent",
+                color: "var(--text-secondary)",
+                border: "1px solid var(--border-default)",
+              }}
+              className="btn-ghost"
+            >
+              View public profile <ExternalLink size={12} />
+            </a>
+
+            <button
+              onClick={() => copyLink(profileUrl)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
+                height: "38px",
+                borderRadius: "10px",
+                fontSize: "14px",
+                fontWeight: 500,
+                background: "transparent",
+                color: "var(--text-secondary)",
+                border: "1px solid var(--border-default)",
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+              className="btn-ghost"
+            >
+              <Copy size={13} />
+              {linkCopied ? "Copied!" : "Copy profile link"}
+            </button>
+
+            {verifiedCount > 0 && (
+              <a
+                href={`/certificate/${wallet}`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  height: "38px",
+                  borderRadius: "10px",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  background: "var(--accent)",
+                  color: "var(--text-inverse)",
+                  border: "none",
+                  textDecoration: "none",
+                }}
+                className="btn-primary"
+              >
+                View VM Card
+              </a>
+            )}
+
+            {isDemo && verifiedCount > 0 && (
+              <button
+                onClick={handleDemoDisconnectAll}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  height: "38px",
+                  borderRadius: "10px",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  background: "transparent",
+                  color: "var(--error, #f87171)",
+                  border: "1px solid rgba(248,113,113,0.3)",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                <LogOut size={13} />
+                Disconnect all
+              </button>
+            )}
+          </div>
+
+          <Divider my="16px" />
+
+          <div>
+            <p style={{ fontSize: "11px", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "4px" }}>
+              Network
+            </p>
+            <p style={{ fontSize: "13px", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "5px" }}>
+              <span style={{ color: "var(--success)", fontSize: "10px" }}>•</span>
               Rialo Devnet
             </p>
           </div>
         </div>
 
-        {/* Stats pills */}
-        <div style={{
-          display: 'flex', gap: '8px', marginTop: '16px', paddingTop: '16px',
-          borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap',
-        }}>
-          {[
-            { value: verifiedCount, label: 'Platforms' },
-            { value: proofs.length, label: 'Proofs' },
-            { value: joinDate, label: 'Joined' },
-          ].map((stat) => (
-            <div key={stat.label} style={{
-              background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
-              borderRadius: '10px', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '2px',
-            }}>
-              <span style={{ fontSize: '16px', fontWeight: 500, color: 'var(--text-primary)' }}>{stat.value}</span>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                {stat.label}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Verified identities */}
-      <div style={{ marginBottom: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-          <p style={{ fontSize: '11px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
-            Verified Identities
-          </p>
-          <span style={{
-            background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
-            borderRadius: '6px', padding: '2px 8px', fontSize: '12px', color: 'var(--text-muted)',
-          }}>
-            {verifiedCount} / 3
-          </span>
-        </div>
-        {isLoading ? (
-          <div style={{ padding: '24px', textAlign: 'center', fontSize: '14px', color: 'var(--text-muted)' }}>
-            Loading...
+        <div>
+          <div style={{ marginBottom: "20px" }}>
+            <h2 style={{ fontSize: "22px", fontWeight: 600, letterSpacing: "-0.01em", color: "var(--text-primary)", marginBottom: "4px" }}>
+              Your Verifications
+            </h2>
+            <p style={{ fontSize: "14px", color: "var(--text-secondary)" }}>
+              Link accounts to build your on-chain identity
+            </p>
           </div>
-        ) : (
-          <PlatformGrid
-            verifications={verifications}
-            wallet={wallet}
-            readOnly
-          />
-        )}
-      </div>
 
-      {/* On-chain record */}
-      {proofs.length > 0 && (
-        <div style={{ marginBottom: '24px' }}>
-          <OnchainRecord wallet={wallet} proofs={proofs} />
-        </div>
-      )}
+          {isLoading ? (
+            <div style={{ padding: "40px 0", display: "flex", justifyContent: "center" }}>
+              <span style={{ fontSize: "14px", color: "var(--text-muted)" }}>Loading verifications...</span>
+            </div>
+          ) : (
+            <PlatformGrid
+              verifications={verifications}
+              wallet={wallet}
+              readOnly={!isDemo}
+              onRevoke={isDemo ? handleDemoRevoke : undefined}
+              onUpdate={isDemo ? handleDemoUpdate : undefined}
+              onFarcasterConnect={isDemo ? handleDemoFarcaster : undefined}
+            />
+          )}
 
-      {/* Share section */}
-      <div>
-        <ProofBadge wallet={wallet} verifications={verifications} />
-        <div style={{ display: 'flex', gap: '8px', marginTop: '16px', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => copyUrl(profileUrl)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '6px',
-              height: '38px', padding: '0 16px', borderRadius: '10px',
-              background: 'transparent', color: 'var(--text-secondary)',
-              border: '1px solid var(--border-default)',
-              cursor: 'pointer', fontSize: '14px', fontWeight: 500, fontFamily: 'inherit',
-              transition: 'color 0.12s ease, background 0.12s ease, border-color 0.12s ease',
-            }}
-            className="btn-ghost"
-          >
-            {urlCopied ? <Check size={13} /> : <Copy size={13} />}
-            {urlCopied ? 'Copied!' : 'Copy profile URL'}
-          </button>
-          <button
-            onClick={() => copyEmbed(embedCode)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '6px',
-              height: '38px', padding: '0 16px', borderRadius: '10px',
-              background: 'transparent', color: 'var(--text-secondary)',
-              border: '1px solid var(--border-default)',
-              cursor: 'pointer', fontSize: '14px', fontWeight: 500, fontFamily: 'inherit',
-              transition: 'color 0.12s ease, background 0.12s ease, border-color 0.12s ease',
-            }}
-            className="btn-ghost"
-          >
-            {embedCopied ? <Check size={13} /> : <Copy size={13} />}
-            {embedCopied ? 'Copied!' : 'Copy embed code'}
-          </button>
+          {verifiedCount > 0 && (
+            <div
+              style={{
+                marginTop: "24px",
+                background: "linear-gradient(135deg, #0D1117 0%, #0E1520 100%)",
+                border: "1px solid rgba(92,225,230,0.25)",
+                borderRadius: "14px",
+                padding: "20px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <div>
+                <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px" }}>
+                  {verifiedCount === 3 ? "Fully Verified Builder" : `${verifiedCount} of 3 platforms verified`}
+                </p>
+                <p style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Share your VM Card with the world</p>
+              </div>
+              <a
+                href={`/certificate/${wallet}`}
+                style={{
+                  flexShrink: 0,
+                  height: "38px",
+                  padding: "0 16px",
+                  borderRadius: "10px",
+                  background: "var(--accent)",
+                  color: "var(--text-inverse)",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  textDecoration: "none",
+                }}
+              >
+                View VM Card
+              </a>
+            </div>
+          )}
+
+          <div style={{ marginTop: "32px" }}>
+            <h3 style={{ fontSize: "16px", fontWeight: 500, letterSpacing: "-0.01em", color: "var(--text-primary)", marginBottom: "4px" }}>
+              Proof Badge
+            </h3>
+            <p style={{ fontSize: "14px", color: "var(--text-secondary)", marginBottom: "16px" }}>
+              Embed this badge on your website or share your profile link.
+            </p>
+            <ProofBadge wallet={wallet} verifications={verifications} />
+            <div style={{ marginTop: "16px" }}>
+              <CodeBlock title="Embed code" code={embedCode} />
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
