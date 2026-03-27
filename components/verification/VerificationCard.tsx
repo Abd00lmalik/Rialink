@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { Modal } from "@/components/ui/Modal";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { formatDate, formatProofHash, formatTxSignature } from "@/lib/utils";
+import { createProofShareCode, formatDate, formatProofHash, formatTxSignature } from "@/lib/utils";
 import { EXPLORER_URL } from "@/lib/constants";
 import type { Platform, VerificationState } from "@/lib/types";
 
@@ -68,7 +68,8 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
   const color = PLATFORM_COLORS[platform];
   const [showRevokeModal, setShowRevokeModal] = useState(false);
   const [revoking, setRevoking] = useState(false);
-  const { copy, copied } = useCopyToClipboard();
+  const { copy: copyHash, copied: hashCopied } = useCopyToClipboard();
+  const { copy: copyShare, copied: shareCopied } = useCopyToClipboard();
 
   const handleConnect = useCallback(() => {
     if (onConnect) {
@@ -176,13 +177,24 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
             </div>
 
             {/* Proof hash */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "8px 12px", marginBottom: "12px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "8px 12px", marginBottom: "10px" }}>
               <div>
                 <p style={{ fontSize: "11px", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "2px" }}>Proof Hash</p>
                 <p style={{ fontSize: "13px", fontFamily: "monospace", color: "var(--text-muted)" }}>{formatProofHash(proof.proofHash)}</p>
               </div>
-              <button onClick={() => copy(proof.proofHash)} style={{ background: "none", border: "none", cursor: "pointer", color: copied ? "var(--success)" : "var(--text-muted)", padding: "4px", display: "flex", alignItems: "center" }}>
-                {copied ? <Check size={14} /> : <Copy size={14} />}
+              <button onClick={() => copyHash(proof.proofHash)} style={{ background: "none", border: "none", cursor: "pointer", color: hashCopied ? "var(--success)" : "var(--text-muted)", padding: "4px", display: "flex", alignItems: "center" }}>
+                {hashCopied ? <Check size={14} /> : <Copy size={14} />}
+              </button>
+            </div>
+
+            {/* Share code */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "8px 12px", marginBottom: "12px" }}>
+              <div>
+                <p style={{ fontSize: "11px", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "2px" }}>Share Code</p>
+                <p style={{ fontSize: "13px", fontFamily: "monospace", color: "var(--text-muted)" }}>{createProofShareCode(proof.proofHash)}</p>
+              </div>
+              <button onClick={() => copyShare(createProofShareCode(proof.proofHash))} style={{ background: "none", border: "none", cursor: "pointer", color: shareCopied ? "var(--success)" : "var(--text-muted)", padding: "4px", display: "flex", alignItems: "center" }}>
+                {shareCopied ? <Check size={14} /> : <Copy size={14} />}
               </button>
             </div>
 

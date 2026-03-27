@@ -42,3 +42,13 @@ export function formatTxSignature(sig: string): string {
   if (clean.length <= 10) return clean;
   return `${clean.slice(0, 4)}...${clean.slice(-4)}`;
 }
+
+export function createProofShareCode(hash: string): string {
+  if (!hash) return '';
+  const clean = hash.replace(/^0x/, '').toLowerCase();
+  if (clean.length < 12) return clean.toUpperCase();
+  const start = clean.slice(0, 4);
+  const middle = clean.slice(28, 32);
+  const end = clean.slice(-4);
+  return `VM-${start}-${middle}-${end}`.toUpperCase();
+}
