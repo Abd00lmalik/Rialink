@@ -60,7 +60,7 @@ export default function ProfilePage({ params }: PageProps) {
 
   const handleDemoRevoke = async (_platform: Platform) => {};
   const handleDemoUpdate = (_platform: Platform) => {};
-  const handleDemoFarcaster = (_data: { fid: number; username: string; custody: string; signature: string }) => {};
+  const handleDemoFarcaster = (_data: { fid: number; username: string; custody: string; message: string; signature: string; nonce: string; domain: string; pfpUrl?: string }) => {};
   const handleDemoDisconnectAll = () => {};
 
   return (
