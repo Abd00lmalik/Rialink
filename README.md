@@ -1,61 +1,50 @@
-# VerifyMe - Decentralized Social Proof Registry on Rialo
+# VerifyMe on Rialo
 
-A Next.js 14 dApp for linking GitHub, Discord, and Farcaster identities to your Solana wallet. Proof hashes are stored on the Rialo blockchain. No personal data on-chain - only cryptographic fingerprints.
+Live demo: https://verifyme-two.vercel.app
 
-## Quick Start
+## What VerifyMe does
+VerifyMe lets builders prove they control GitHub, Discord, and Farcaster accounts from a wallet address without KYC.
+We store proofs as hashes (receipts), not emails or real names.
 
-```bash
-npm install
-cp .env.local.example .env.local
-# Fill in GitHub + Discord OAuth credentials
-npm run dev
-```
+## Demo flow (2 minutes)
+1. Open /profile/demo (shows the end state)
+2. Open /verify and connect a wallet
+3. Verify GitHub, Discord, and Farcaster
+4. Open /certificate/<wallet> (VM Card)
+5. Share the VM Card link on X (uses OpenGraph image preview)
 
-Visit http://localhost:3000
+## What is working today (off-chain)
+- Wallet connect + verification dashboard
+- GitHub OAuth callback fetches avatar + public repo count + commit estimate
+- Discord OAuth callback fetches avatar + account creation date + server count
+- Farcaster verification fetches avatar + follower count
+- Proof persistence via Upstash Redis (KV)
+- Public profile page + embeddable badge
+- VM Card + OpenGraph image
 
-## Demo
+## What is left before we claim "on-chain"
+- Switch proof hash to a real cryptographic hash (SHA-256) and freeze a v1 spec
+- Clean remaining mojibake (bad characters) in UI copy
+- Stats endpoint should read from KV instead of an in-memory mock store
 
-Visit http://localhost:3000/profile/demo to see a fully populated profile with all 3 platforms verified.
+## Rialo integration plan (what we need dev access for)
+Phase 1 (anchor):
+- Compute a VM Identity Root hash from the 1-3 platform proof hashes
+- Write the root hash to a Rialo contract keyed by wallet (plus timestamp)
+- Read it back in the UI and show an "Anchored" badge
 
-## OAuth Setup
+Phase 2 (unique Rialo feature):
+- Use Rialo web connectivity + async workflow to verify a public challenge on-chain:
+  - GitHub Gist or Farcaster cast contains: verifyme:<wallet>:<nonce>
+  - Contract fetches URL, validates challenge, writes proof hashes/root
+- No backend required for verification
 
-### GitHub
-1. Go to github.com/settings/developers -> OAuth Apps -> New OAuth App
-2. Homepage URL: http://localhost:3000
-3. Callback URL: http://localhost:3000/api/github/callback
-4. Copy Client ID + Client Secret into `.env.local`
+Phase 3 (reactive):
+- Reactive checks re-validate proofs on trigger
+- Auto-revoke if the public challenge disappears (optional)
 
-### Discord
-1. Go to discord.com/developers/applications -> New Application
-2. Add OAuth2 redirect: http://localhost:3000/api/discord/callback
-3. Copy Client ID + Client Secret into `.env.local`
-
-### Farcaster
-No API keys needed. Uses Sign In With Farcaster (wallet-based auth).
-
-## Wallet Proof Requirement
-Users must sign a wallet message before any proof is saved. This prevents someone from claiming a wallet they do not control.
-
-## Stack
-- Next.js 14 App Router + TypeScript
-- Tailwind CSS v3
-- @solana/wallet-adapter (Phantom + Backpack + Solflare)
-- @farcaster/auth-kit
-- Rialo blockchain (SVM-compatible devnet)
-
-## Blockchain Integration
-All contract calls are stubbed with TODOs. The current `/api/proof` storage uses Redis and can be swapped for on-chain reads/writes when Rialo devnet access is available.
-
-## Project Structure
-```
-app/                    Next.js App Router pages + API routes
-components/
-  layout/               Navbar, Footer
-  ui/                   Design system components
-  wallet/               Solana wallet adapter wrappers
-  verification/         Core verification components
-  landing/              Landing page sections
-lib/                    Types, utilities, constants, mock data
-hooks/                  Custom React hooks
-```
-
+## What we need from the Rialo team
+- Devnet/testnet RPC endpoint and explorer base URL
+- Smart contract templates/examples for storing small commitments (hashes)
+- Docs for web calls, async workflow, and reactive triggers
+- Guidance for key management and rate limits
