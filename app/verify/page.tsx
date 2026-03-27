@@ -276,7 +276,7 @@ function VerifyDashboard() {
 
   const avatarColor = generateAvatarColor(wallet);
   const verifiedCount = verifications.filter((v) => v.status === "verified").length;
-  const profileUrl = `${APP_URL}/profile/${wallet}`;
+  const verifierUrl = `${APP_URL}/verifier?wallet=${encodeURIComponent(wallet)}`;
   const embedCode = `<iframe src="${APP_URL}/badge/${wallet}" width="340" height="120" frameborder="0"></iframe>`;
 
   return (
@@ -306,12 +306,12 @@ function VerifyDashboard() {
             </div>
             <Divider my="16px" />
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <a href={`/profile/${wallet}`} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", height: "38px", borderRadius: "10px", fontSize: "14px", fontWeight: 500, background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border-default)" }} className="btn-ghost">
-                View public profile <ExternalLink size={12} />
+              <a href={`/verifier?wallet=${encodeURIComponent(wallet)}`} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", height: "38px", borderRadius: "10px", fontSize: "14px", fontWeight: 500, background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border-default)" }} className="btn-ghost">
+                Open verifier <ExternalLink size={12} />
               </a>
-              <button onClick={() => copyLink(profileUrl)} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", height: "38px", borderRadius: "10px", fontSize: "14px", fontWeight: 500, background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border-default)", cursor: "pointer", fontFamily: "inherit" }} className="btn-ghost">
+              <button onClick={() => copyLink(verifierUrl)} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", height: "38px", borderRadius: "10px", fontSize: "14px", fontWeight: 500, background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border-default)", cursor: "pointer", fontFamily: "inherit" }} className="btn-ghost">
                 <Copy size={13} />
-                {linkCopied ? "Copied!" : "Copy profile link"}
+                {linkCopied ? "Copied!" : "Copy verifier link"}
               </button>
               {verifiedCount > 0 && (
                 <a href={`/certificate/${wallet}`} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", height: "38px", borderRadius: "10px", fontSize: "14px", fontWeight: 500, background: "var(--accent)", color: "var(--text-inverse)", border: "none", textDecoration: "none" }} className="btn-primary">
@@ -387,7 +387,7 @@ function VerifyDashboard() {
             )}
             <div style={{ marginTop: "32px" }}>
               <h3 style={{ fontSize: "16px", fontWeight: 500, letterSpacing: "-0.01em", color: "var(--text-primary)", marginBottom: "4px" }}>Proof Badge</h3>
-              <p style={{ fontSize: "14px", color: "var(--text-secondary)", marginBottom: "16px" }}>Embed this badge on your website or share your profile link.</p>
+              <p style={{ fontSize: "14px", color: "var(--text-secondary)", marginBottom: "16px" }}>Embed this badge on your website or share your verifier link.</p>
               <ProofBadge wallet={wallet} verifications={verifications} />
               <div style={{ marginTop: "16px" }}>
                 <CodeBlock title="Embed code" code={embedCode} />
@@ -408,4 +408,3 @@ export default function VerifyPage() {
     </Suspense>
   );
 }
-

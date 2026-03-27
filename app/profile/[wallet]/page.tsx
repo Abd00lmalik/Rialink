@@ -55,7 +55,7 @@ export default function ProfilePage({ params }: PageProps) {
 
   const verifiedCount = verifications.filter((v) => v.status === "verified").length;
   const avatarColor = generateAvatarColor(wallet);
-  const profileUrl = `${APP_URL}/profile/${rawWallet}`;
+  const verifierUrl = `${APP_URL}/verifier?wallet=${encodeURIComponent(rawWallet)}`;
   const embedCode = `<iframe src="${APP_URL}/badge/${wallet}" width="340" height="120" frameborder="0"></iframe>`;
 
   const handleDemoRevoke = async (_platform: Platform) => {};
@@ -117,7 +117,7 @@ export default function ProfilePage({ params }: PageProps) {
 
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             <a
-              href={`/profile/${rawWallet}`}
+              href={`/verifier?wallet=${encodeURIComponent(rawWallet)}`}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -133,11 +133,11 @@ export default function ProfilePage({ params }: PageProps) {
               }}
               className="btn-ghost"
             >
-              View public profile <ExternalLink size={12} />
+              Open verifier <ExternalLink size={12} />
             </a>
 
             <button
-              onClick={() => copyLink(profileUrl)}
+              onClick={() => copyLink(verifierUrl)}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -156,7 +156,7 @@ export default function ProfilePage({ params }: PageProps) {
               className="btn-ghost"
             >
               <Copy size={13} />
-              {linkCopied ? "Copied!" : "Copy profile link"}
+              {linkCopied ? "Copied!" : "Copy verifier link"}
             </button>
 
             {verifiedCount > 0 && (
@@ -291,7 +291,7 @@ export default function ProfilePage({ params }: PageProps) {
               Proof Badge
             </h3>
             <p style={{ fontSize: "14px", color: "var(--text-secondary)", marginBottom: "16px" }}>
-              Embed this badge on your website or share your profile link.
+              Embed this badge on your website or share your verifier link.
             </p>
             <ProofBadge wallet={wallet} verifications={verifications} />
             <div style={{ marginTop: "16px" }}>

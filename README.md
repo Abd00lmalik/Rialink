@@ -10,7 +10,7 @@ Current state: proof storage is off-chain (Upstash Redis) with a placeholder tra
 - Verifies GitHub and Discord using OAuth
 - Verifies Farcaster using Sign In With Farcaster and server-side signature verification
 - Generates privacy-preserving proof hashes instead of storing usernames or IDs
-- Displays a public profile, embeddable badge, and VM Card for the wallet
+- Displays a verifier page, embeddable badge, and VM Card for the wallet
 
 ## Where Rialo fits (now and later)
 Now (off-chain)
@@ -29,7 +29,7 @@ Rialo Edge (unique feature)
 ## Why this is useful
 For users
 - Prove you control real social accounts without doxxing yourself
-- Share a single profile or VM Card that aggregates your proofs
+- Share a single verifier link or VM Card that aggregates your proofs
 
 For DAOs and communities
 - Verify a wallet owns real accounts without collecting personal data
@@ -46,11 +46,11 @@ For DAOs and communities
 2. User signs a one-time message to prove wallet ownership.
 3. User verifies GitHub/Discord (OAuth) or Farcaster (sign-in).
 4. The server computes a proof hash and returns masked identity data.
-5. Proofs are saved and displayed on the profile, badge, and VM Card.
+5. Proofs are saved and displayed on the verifier page, badge, and VM Card.
 
 ## How a user shares their proofs
-Option 1: Share a public profile
-- `/profile/<wallet>` shows verified platforms and proof hashes
+Option 1: Share a verifier link (official)
+- `/verifier?wallet=<wallet>` shows verified platforms, proof hashes, and identity root
 
 Option 2: Share a VM Card (best for non-technical people)
 - `/certificate/<wallet>` summarizes proofs and scores
@@ -60,21 +60,21 @@ Option 3: Share proof hashes directly
 - Users can also share the identity root (see API below)
 - Each proof also has a short Share Code derived from the proof hash for quick cross-checks
 
-Option 4: Share a verifier link
-- `/verifier?wallet=<wallet>` opens a public checker for third parties
+Option 4: Share a public profile (visual only)
+- `/profile/<wallet>` is a read-only view intended for humans
 
 ## How DAOs or third parties verify
 Option 1: Use the verifier page (fastest)
 - Open `/verifier?wallet=<wallet>` to auto-check proofs + identity root
 
-Option 2: Use the public profile (human check)
-- Open `/profile/<wallet>` and confirm the verified platforms
-
-Option 3: Use the API (recommended for automation)
+Option 2: Use the API (recommended for automation)
 - `GET /api/proof?wallet=<wallet>` returns:
   - proofs
   - identityRoot
   - cardId
+
+Option 3: Use the public profile (visual only)
+- `/profile/<wallet>` is not enough on its own and should be paired with the verifier page or API
 
 A DAO can store the proof hashes or identityRoot and verify that a wallet has the required verified accounts without collecting personal data.
 
@@ -110,11 +110,11 @@ Not stored
 
 ## UI routes
 - `/verify` verification dashboard
-- `/profile/<wallet>` public profile
+- `/verifier` public verification page
+- `/profile/<wallet>` public profile (visual only)
 - `/badge/<wallet>` embeddable badge
 - `/certificate/<wallet>` VM Card
 - `/card/<cardId>` shareable card page
-- `/verifier` public verification page
 
 ## Environment variables
 Required

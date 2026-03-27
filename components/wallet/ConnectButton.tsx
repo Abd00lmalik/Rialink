@@ -126,7 +126,7 @@ export function ConnectButton() {
         >
           {/* FIXED LINK */}
           <a
-            href={`/profile/${address}`}
+            href={`/verifier?wallet=${encodeURIComponent(address)}`}
             onClick={() => setDropdownOpen(false)}
             style={{
               display: 'flex',
@@ -141,7 +141,7 @@ export function ConnectButton() {
             }}
           >
             <ExternalLink size={14} />
-            View profile
+            Open verifier
           </a>
 
           <button

@@ -22,9 +22,9 @@ function VerifierDashboard() {
 
   const { copy: copyRoot, copied: rootCopied } = useCopyToClipboard();
 
-  const profileUrl = useMemo(() => {
+  const vmCardUrl = useMemo(() => {
     if (!walletResult) return "";
-    return `${APP_URL}/profile/${walletResult}`;
+    return `${APP_URL}/certificate/${walletResult}`;
   }, [walletResult]);
 
   const runLookup = useCallback(async (wallet: string) => {
@@ -132,12 +132,12 @@ function VerifierDashboard() {
               </p>
               <AddressDisplay address={walletResult} />
             </div>
-            {profileUrl && (
+            {vmCardUrl && (
               <a
-                href={profileUrl}
+                href={vmCardUrl}
                 style={{ fontSize: "13px", color: "var(--accent-text)", display: "flex", alignItems: "center", gap: "6px" }}
               >
-                View public profile <ExternalLink size={12} />
+                View VM Card <ExternalLink size={12} />
               </a>
             )}
           </div>

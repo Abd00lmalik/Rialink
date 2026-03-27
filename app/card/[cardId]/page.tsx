@@ -93,8 +93,8 @@ export default async function CardPage({ params }: { params: { cardId: string } 
         </div>
 
         <div style={{ marginTop: 12, display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <Link href={`/profile/${wallet}`} style={{ color: "#5ce1e6", textDecoration: "none" }}>
-            Open profile
+          <Link href={`/verifier?wallet=${encodeURIComponent(wallet)}`} style={{ color: "#5ce1e6", textDecoration: "none" }}>
+            Open verifier
           </Link>
           <Link href={`/certificate/${wallet}`} style={{ color: "#5ce1e6", textDecoration: "none" }}>
             Open certificate
@@ -104,4 +104,3 @@ export default async function CardPage({ params }: { params: { cardId: string } 
     </div>
   );
 }
-
