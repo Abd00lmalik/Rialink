@@ -7,8 +7,14 @@ import { AddressDisplay } from "@/components/ui/AddressDisplay";
 import { Divider } from "@/components/ui/Divider";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { APP_URL } from "@/lib/constants";
+import { POLICY_PRESETS } from "@/lib/policy";
 import { createProofShareCode, formatProofHash, formatTxSignature } from "@/lib/utils";
 import type { ProofRecord } from "@/lib/types";
+
+const POLICY_OPTIONS = Object.entries(POLICY_PRESETS).map(([id, preset]) => ({
+  id,
+  label: preset.name,
+}));
 
 function VerifierDashboard() {
   const searchParams = useSearchParams();
@@ -19,8 +25,17 @@ function VerifierDashboard() {
   const [cardId, setCardId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [policyId, setPolicyId] = useState<string>(() => POLICY_OPTIONS[0]?.id || "");
+  const [policyLoading, setPolicyLoading] = useState(false);
+  const [policyResult, setPolicyResult] = useState<{
+    eligible: boolean;
+    reasons?: string[];
+    accessToken?: string | null;
+    expiresAt?: number | null;
+  } | null>(null);
 
   const { copy: copyRoot, copied: rootCopied } = useCopyToClipboard();
+  const { copy: copyToken, copied: tokenCopied } = useCopyToClipboard();
 
   const vmCardUrl = useMemo(() => {
     if (!walletResult) return "";
@@ -44,6 +59,7 @@ function VerifierDashboard() {
     setProofs([]);
     setIdentityRoot(null);
     setCardId(null);
+    setPolicyResult(null);
 
     try {
       const res = await fetch(`/api/proof?wallet=${encodeURIComponent(trimmed)}`);
@@ -68,6 +84,34 @@ function VerifierDashboard() {
       runLookup(walletParam);
     }
   }, [searchParams, runLookup]);
+
+  const handlePolicyCheck = useCallback(async () => {
+    if (!walletResult) return;
+    setPolicyLoading(true);
+    setPolicyResult(null);
+    try {
+      const res = await fetch("/api/policy/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wallet: walletResult, policyId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPolicyResult({ eligible: false, reasons: [data?.error || "Policy check failed"] });
+      } else {
+        setPolicyResult({
+          eligible: !!data.eligible,
+          reasons: Array.isArray(data.reasons) ? data.reasons : [],
+          accessToken: data.accessToken || null,
+          expiresAt: data.expiresAt || null,
+        });
+      }
+    } catch {
+      setPolicyResult({ eligible: false, reasons: ["Policy check failed. Try again."] });
+    } finally {
+      setPolicyLoading(false);
+    }
+  }, [walletResult, policyId]);
 
   return (
     <div style={{ maxWidth: "880px", margin: "0 auto", padding: "96px 24px 80px" }}>
@@ -245,6 +289,96 @@ function VerifierDashboard() {
                 <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "10px" }}>
                   For high-stakes verification, ask the user to sign a fresh wallet message to confirm ownership.
                 </p>
+              )}
+            </div>
+
+            <Divider my="8px" />
+
+            <div>
+              <p style={{ fontSize: "12px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "10px" }}>
+                Policy Check (Access Token)
+              </p>
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "12px" }}>
+                <select
+                  value={policyId}
+                  onChange={(e) => setPolicyId(e.target.value)}
+                  style={{
+                    flex: 1,
+                    minWidth: "220px",
+                    height: "38px",
+                    borderRadius: "10px",
+                    border: "1px solid var(--border-default)",
+                    background: "var(--bg-elevated)",
+                    color: "var(--text-primary)",
+                    padding: "0 10px",
+                    fontSize: "13px",
+                  }}
+                >
+                  {POLICY_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={handlePolicyCheck}
+                  disabled={policyLoading}
+                  style={{
+                    height: "38px",
+                    padding: "0 14px",
+                    borderRadius: "10px",
+                    border: "none",
+                    background: "var(--accent)",
+                    color: "var(--text-inverse)",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                  }}
+                >
+                  {policyLoading ? "Checking..." : "Generate token"}
+                </button>
+              </div>
+
+              {policyResult && (
+                <div style={{ border: "1px solid var(--border-subtle)", borderRadius: "12px", padding: "12px", background: "var(--bg-elevated)" }}>
+                  <p style={{ fontSize: "13px", color: policyResult.eligible ? "var(--success)" : "var(--error)", marginBottom: "8px" }}>
+                    {policyResult.eligible ? "Eligible" : "Not eligible"}
+                  </p>
+                  {policyResult.reasons && policyResult.reasons.length > 0 && (
+                    <div style={{ display: "grid", gap: "4px", marginBottom: "8px" }}>
+                      {policyResult.reasons.map((reason, idx) => (
+                        <p key={`${reason}-${idx}`} style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                          {reason}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  {policyResult.accessToken && (
+                    <>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "8px 10px" }}>
+                        <div>
+                          <p style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "2px" }}>
+                            Access Token
+                          </p>
+                          <p style={{ fontFamily: "monospace", fontSize: "12px", color: "var(--text-muted)", wordBreak: "break-all" }}>
+                            {policyResult.accessToken}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => copyToken(policyResult.accessToken || "")}
+                          style={{ background: "none", border: "none", cursor: "pointer", color: tokenCopied ? "var(--success)" : "var(--text-muted)", padding: "4px", display: "flex", alignItems: "center" }}
+                        >
+                          {tokenCopied ? <Check size={14} /> : <Copy size={14} />}
+                        </button>
+                      </div>
+                      {policyResult.expiresAt && (
+                        <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "6px" }}>
+                          Expires {new Date(policyResult.expiresAt).toLocaleString()}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
               )}
             </div>
           </div>
