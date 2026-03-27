@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Copy, ExternalLink, LogOut } from "lucide-react";
 import { PlatformGrid } from "@/components/verification/PlatformGrid";
 import { ProofBadge } from "@/components/verification/ProofBadge";
-import { CodeBlock } from "@/components/ui/CodeBlock";
 import { Divider } from "@/components/ui/Divider";
 import { AddressDisplay } from "@/components/ui/AddressDisplay";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
@@ -56,7 +55,6 @@ export default function ProfilePage({ params }: PageProps) {
   const verifiedCount = verifications.filter((v) => v.status === "verified").length;
   const avatarColor = generateAvatarColor(wallet);
   const verifierUrl = `${APP_URL}/verifier?wallet=${encodeURIComponent(rawWallet)}`;
-  const embedCode = `<iframe src="${APP_URL}/badge/${wallet}" width="340" height="120" frameborder="0"></iframe>`;
 
   const handleDemoRevoke = async (_platform: Platform) => {};
   const handleDemoUpdate = (_platform: Platform) => {};
@@ -287,16 +285,11 @@ export default function ProfilePage({ params }: PageProps) {
           )}
 
           <div style={{ marginTop: "32px" }}>
-            <h3 style={{ fontSize: "16px", fontWeight: 500, letterSpacing: "-0.01em", color: "var(--text-primary)", marginBottom: "4px" }}>
-              Proof Badge
-            </h3>
+            <h3 style={{ fontSize: "16px", fontWeight: 500, letterSpacing: "-0.01em", color: "var(--text-primary)", marginBottom: "4px" }}>Public Badge</h3>
             <p style={{ fontSize: "14px", color: "var(--text-secondary)", marginBottom: "16px" }}>
-              Embed this badge on your website or share your verifier link.
+              Share your verifier link for checks. The badge is a quick visual summary.
             </p>
             <ProofBadge wallet={wallet} verifications={verifications} />
-            <div style={{ marginTop: "16px" }}>
-              <CodeBlock title="Embed code" code={embedCode} />
-            </div>
           </div>
         </div>
       </div>

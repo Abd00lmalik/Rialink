@@ -1,13 +1,12 @@
 ﻿"use client";
 import { useState, useCallback } from "react";
 import dynamic from "next/dynamic";
-import { Copy, Check, ExternalLink, RefreshCw, Unlink } from "lucide-react";
+import { ExternalLink, RefreshCw, Unlink } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { Modal } from "@/components/ui/Modal";
-import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { createProofShareCode, formatDate, formatProofHash, formatTxSignature } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { EXPLORER_URL } from "@/lib/constants";
 import type { Platform, VerificationState } from "@/lib/types";
 
@@ -68,8 +67,6 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
   const color = PLATFORM_COLORS[platform];
   const [showRevokeModal, setShowRevokeModal] = useState(false);
   const [revoking, setRevoking] = useState(false);
-  const { copy: copyHash, copied: hashCopied } = useCopyToClipboard();
-  const { copy: copyShare, copied: shareCopied } = useCopyToClipboard();
 
   const handleConnect = useCallback(() => {
     if (onConnect) {
@@ -176,26 +173,10 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
               </div>
             </div>
 
-            {/* Proof hash */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "8px 12px", marginBottom: "10px" }}>
-              <div>
-                <p style={{ fontSize: "11px", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "2px" }}>Proof Hash</p>
-                <p style={{ fontSize: "13px", fontFamily: "monospace", color: "var(--text-muted)" }}>{formatProofHash(proof.proofHash)}</p>
-              </div>
-              <button onClick={() => copyHash(proof.proofHash)} style={{ background: "none", border: "none", cursor: "pointer", color: hashCopied ? "var(--success)" : "var(--text-muted)", padding: "4px", display: "flex", alignItems: "center" }}>
-                {hashCopied ? <Check size={14} /> : <Copy size={14} />}
-              </button>
-            </div>
-
-            {/* Share code */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "8px 12px", marginBottom: "12px" }}>
-              <div>
-                <p style={{ fontSize: "11px", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "2px" }}>Share Code</p>
-                <p style={{ fontSize: "13px", fontFamily: "monospace", color: "var(--text-muted)" }}>{createProofShareCode(proof.proofHash)}</p>
-              </div>
-              <button onClick={() => copyShare(createProofShareCode(proof.proofHash))} style={{ background: "none", border: "none", cursor: "pointer", color: shareCopied ? "var(--success)" : "var(--text-muted)", padding: "4px", display: "flex", alignItems: "center" }}>
-                {shareCopied ? <Check size={14} /> : <Copy size={14} />}
-              </button>
+            <div style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "10px 12px", marginBottom: "12px" }}>
+              <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0 }}>
+                This account is verified and ready for eligibility checks in DAOs, airdrops, and communities.
+              </p>
             </div>
 
             {/* Actions */}
@@ -217,11 +198,6 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
                 <button onClick={() => setShowRevokeModal(true)} className="revoke-btn" style={{ fontSize: "12px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "4px" }}>
                   <Unlink size={11} /> Disconnect
                 </button>
-              </div>
-            )}
-            {!readOnly && (
-              <div style={{ marginTop: "10px", fontSize: "12px", color: "var(--text-muted)", fontFamily: "monospace" }}>
-                Tx: {proof.txSignature ? formatTxSignature(proof.txSignature) : "pending"}
               </div>
             )}
           </div>
