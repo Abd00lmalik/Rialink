@@ -1,6 +1,6 @@
 # VerifyMe — Decentralized Social Proof Registry on Rialo
 
-VerifyMe lets anyone prove they control GitHub, Discord, and Farcaster accounts from a Solana-compatible wallet without exposing personal data. The app stores privacy-preserving proof hashes and shows a public profile, badge, and VM Card.
+VerifyMe lets anyone prove they control GitHub, Discord, and Farcaster accounts from a Solana-compatible wallet without exposing personal data. The app stores privacy-preserving proof hashes and shows a verifier page, badge, and VM Card.
 
 Current state: proof storage is off-chain (Upstash Redis) with a placeholder transaction signature so the UI is ready for Rialo on-chain writes once devnet access is granted.
 
@@ -10,6 +10,7 @@ Current state: proof storage is off-chain (Upstash Redis) with a placeholder tra
 - Verifies GitHub and Discord using OAuth
 - Verifies Farcaster using Sign In With Farcaster and server-side signature verification
 - Generates privacy-preserving proof hashes instead of storing usernames or IDs
+- Provides a policy engine and access tokens for gating (airdrop, DAO, bounty)
 - Displays a verifier page, embeddable badge, and VM Card for the wallet
 
 ## Where Rialo fits (now and later)
@@ -34,12 +35,14 @@ For users
 For DAOs and communities
 - Verify a wallet owns real accounts without collecting personal data
 - Use proof hashes and the identity root to match wallets to verified accounts
+- Gate access by policy (airdrop, DAO membership, bounty submissions)
 
 ## Use cases (examples)
-- DAO membership: require a wallet to prove GitHub + Farcaster before granting roles
-- Bounty programs: only accept submissions from wallets that verified GitHub
-- Community onboarding: verify Discord ownership without storing usernames
-- Reputation: share a VM Card link as a portable, privacy-safe identity
+- Sybil-resistant airdrops: require 2+ verified platforms
+- DAO membership gating: require GitHub + Farcaster
+- Hiring and grants: confirm a wallet belongs to a real builder
+- Bounty submissions: require verified GitHub
+- Community moderation: flag wallets with no verified proofs
 
 ## How a user proves ownership (end-to-end)
 1. User connects a wallet.
@@ -63,17 +66,31 @@ Option 3: Share proof hashes directly
 Option 4: Share a public profile (visual only)
 - `/profile/<wallet>` is a read-only view intended for humans
 
+## Policy engine and access tokens
+The policy engine evaluates whether a wallet meets a rule set and issues a short-lived access token when eligible.
+
+Example policies
+- Airdrop: minPlatforms = 2
+- DAO gate: requirePlatforms = ["github", "farcaster"]
+- Bounty: requirePlatforms = ["github"]
+
+Third-party apps call `/api/policy/check` and receive an `accessToken` if eligible. The token can be verified later using `/api/policy/verify`.
+
 ## How DAOs or third parties verify
 Option 1: Use the verifier page (fastest)
 - Open `/verifier?wallet=<wallet>` to auto-check proofs + identity root
 
-Option 2: Use the API (recommended for automation)
+Option 2: Use the policy engine (recommended for gating)
+- `POST /api/policy/check` returns eligibility and a short-lived access token
+- `POST /api/policy/verify` confirms the token is valid
+
+Option 3: Use the API (recommended for automation)
 - `GET /api/proof?wallet=<wallet>` returns:
   - proofs
   - identityRoot
   - cardId
 
-Option 3: Use the public profile (visual only)
+Option 4: Use the public profile (visual only)
 - `/profile/<wallet>` is not enough on its own and should be paired with the verifier page or API
 
 A DAO can store the proof hashes or identityRoot and verify that a wallet has the required verified accounts without collecting personal data.
@@ -107,6 +124,10 @@ Not stored
   - Removes a proof (requires walletProof)
 - `POST /api/farcaster`
   - Verifies Farcaster signature and returns proof hash data
+- `POST /api/policy/check`
+  - Evaluates a policy and issues an access token if eligible
+- `POST /api/policy/verify`
+  - Verifies the access token
 
 ## UI routes
 - `/verify` verification dashboard
@@ -125,12 +146,14 @@ Required
 - `DISCORD_CLIENT_ID`
 - `DISCORD_CLIENT_SECRET`
 - `FARCASTER_RPC_URL` (Ethereum RPC for signature verification)
+- `POLICY_SIGNING_SECRET` (used to sign access tokens)
 
 Recommended
 - `NEXT_PUBLIC_APP_URL`
 - `NEXT_PUBLIC_RIALO_RPC_URL`
 - `NEXT_PUBLIC_RIALO_EXPLORER_URL`
 - `NEXT_PUBLIC_FARCASTER_RELAY_URL`
+- `POLICY_TOKEN_TTL_SECONDS` (default 600)
 
 ## Local development
 ```bash
