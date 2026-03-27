@@ -58,12 +58,19 @@ Option 2: Share a VM Card (best for non-technical people)
 Option 3: Share proof hashes directly
 - The proof hash is shown in each verified card and can be copied
 - Users can also share the identity root (see API below)
+- Each proof also has a short Share Code derived from the proof hash for quick cross-checks
+
+Option 4: Share a verifier link
+- `/verifier?wallet=<wallet>` opens a public checker for third parties
 
 ## How DAOs or third parties verify
-Option 1: Use the public profile (human check)
+Option 1: Use the verifier page (fastest)
+- Open `/verifier?wallet=<wallet>` to auto-check proofs + identity root
+
+Option 2: Use the public profile (human check)
 - Open `/profile/<wallet>` and confirm the verified platforms
 
-Option 2: Use the API (recommended for automation)
+Option 3: Use the API (recommended for automation)
 - `GET /api/proof?wallet=<wallet>` returns:
   - proofs
   - identityRoot
@@ -107,6 +114,7 @@ Not stored
 - `/badge/<wallet>` embeddable badge
 - `/certificate/<wallet>` VM Card
 - `/card/<cardId>` shareable card page
+- `/verifier` public verification page
 
 ## Environment variables
 Required

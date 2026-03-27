@@ -8,6 +8,7 @@ import { ConnectButton } from '@/components/wallet/ConnectButton';
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
   { href: '/#how-it-works', label: 'How it works' },
+  { href: '/verifier', label: 'Verifier' },
   { href: '/#faq', label: 'FAQ' },
   { href: 'https://rialo.io', label: 'Docs' },
 ];
