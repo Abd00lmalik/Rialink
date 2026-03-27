@@ -1,50 +1,111 @@
-# VerifyMe on Rialo
+# VerifyMe — Decentralized Social Proof Registry on Rialo
 
-Live demo: https://verifyme-two.vercel.app
+VerifyMe lets anyone prove they control GitHub, Discord, and Farcaster accounts from a Solana-compatible wallet without exposing personal data. The app stores privacy-preserving proof hashes and shows a public profile, badge, and VM Card.
 
-## What VerifyMe does
-VerifyMe lets builders prove they control GitHub, Discord, and Farcaster accounts from a wallet address without KYC.
-We store proofs as hashes (receipts), not emails or real names.
+Current state: proof storage is off-chain (Upstash Redis) with a placeholder transaction signature so the UI is ready for Rialo on-chain writes once devnet access is granted.
 
-## Demo flow (2 minutes)
-1. Open /profile/demo (shows the end state)
-2. Open /verify and connect a wallet
-3. Verify GitHub, Discord, and Farcaster
-4. Open /certificate/<wallet> (VM Card)
-5. Share the VM Card link on X (uses OpenGraph image preview)
+## What the dApp does
+- Connects a Solana-compatible wallet (Phantom, Solflare)
+- Requires a wallet signature to prove ownership before any proof is saved
+- Verifies GitHub and Discord using OAuth
+- Verifies Farcaster using Sign In With Farcaster and server-side signature verification
+- Generates privacy-preserving proof hashes instead of storing usernames or IDs
+- Displays a public profile, embeddable badge, and VM Card for the wallet
 
-## What is working today (off-chain)
-- Wallet connect + verification dashboard
-- GitHub OAuth callback fetches avatar + public repo count + commit estimate
-- Discord OAuth callback fetches avatar + account creation date + server count
-- Farcaster verification fetches avatar + follower count
-- Proof persistence via Upstash Redis (KV)
-- Public profile page + embeddable badge
-- VM Card + OpenGraph image
+## Why this is useful
+For users
+- Prove you control real social accounts without doxxing yourself
+- Share a single profile or VM Card that aggregates your proofs
 
-## What is left before we claim "on-chain"
-- Switch proof hash to a real cryptographic hash (SHA-256) and freeze a v1 spec
-- Clean remaining mojibake (bad characters) in UI copy
-- Stats endpoint should read from KV instead of an in-memory mock store
+For DAOs and communities
+- Verify a wallet owns real accounts without storing personal data
+- Use proof hashes and the identity root to match wallets to verified accounts
 
-## Rialo integration plan (what we need dev access for)
-Phase 1 (anchor):
-- Compute a VM Identity Root hash from the 1-3 platform proof hashes
-- Write the root hash to a Rialo contract keyed by wallet (plus timestamp)
-- Read it back in the UI and show an "Anchored" badge
+## How it works (high level)
+1. User connects a wallet.
+2. User signs a one-time message to prove wallet ownership.
+3. User verifies GitHub/Discord (OAuth) or Farcaster (sign-in).
+4. The server computes a proof hash and returns a masked username and metadata.
+5. Proofs are saved in Redis and shown in the UI.
+6. A placeholder transaction signature is stored now; later this will be a Rialo on-chain tx.
 
-Phase 2 (unique Rialo feature):
-- Use Rialo web connectivity + async workflow to verify a public challenge on-chain:
-  - GitHub Gist or Farcaster cast contains: verifyme:<wallet>:<nonce>
-  - Contract fetches URL, validates challenge, writes proof hashes/root
-- No backend required for verification
+## Proof model
+- Proof Hash = hash(walletAddress + platformUserId)
+- Username Hash = hash(platform + username)
+- Masked username is displayed in the UI (not the full username)
+- Identity Root is computed from the set of proof hashes
 
-Phase 3 (reactive):
-- Reactive checks re-validate proofs on trigger
-- Auto-revoke if the public challenge disappears (optional)
+## What data is stored
+Stored per proof
+- proofHash
+- usernameHash
+- maskedUsername
+- platform metadata (repo count, follower count, account created date)
+- verifiedAt timestamp
+- txSignature (currently off-chain placeholder)
 
-## What we need from the Rialo team
-- Devnet/testnet RPC endpoint and explorer base URL
-- Smart contract templates/examples for storing small commitments (hashes)
-- Docs for web calls, async workflow, and reactive triggers
-- Guidance for key management and rate limits
+Not stored
+- Full social usernames
+- Emails
+- Real names
+
+## How DAOs or third parties can verify
+Option 1: Use the public profile
+- `/profile/<wallet>` shows verified platforms
+
+Option 2: Use the API (recommended)
+- `GET /api/proof?wallet=<wallet>` returns:
+  - proofs
+  - identityRoot
+  - cardId
+
+A DAO can store the proof hashes or identityRoot and verify that a wallet has the required verified accounts without collecting personal data.
+
+## API endpoints (current)
+- `GET /api/proof?wallet=<wallet>`
+  - Returns proofs, identityRoot, cardId
+- `POST /api/proof`
+  - Saves a proof (requires walletProof)
+- `DELETE /api/proof`
+  - Removes a proof (requires walletProof)
+- `POST /api/farcaster`
+  - Verifies Farcaster signature and returns proof hash data
+
+## UI routes
+- `/verify` verification dashboard
+- `/profile/<wallet>` public profile
+- `/badge/<wallet>` embeddable badge
+- `/certificate/<wallet>` VM Card
+- `/card/<cardId>` shareable card page
+
+## Environment variables
+Required
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
+- `GITHUB_CLIENT_ID`
+- `GITHUB_CLIENT_SECRET`
+- `DISCORD_CLIENT_ID`
+- `DISCORD_CLIENT_SECRET`
+- `FARCASTER_RPC_URL` (Ethereum RPC for signature verification)
+
+Recommended
+- `NEXT_PUBLIC_APP_URL`
+- `NEXT_PUBLIC_RIALO_RPC_URL`
+- `NEXT_PUBLIC_RIALO_EXPLORER_URL`
+- `NEXT_PUBLIC_FARCASTER_RELAY_URL`
+
+## Local development
+```bash
+npm install
+cp .env.local.example .env.local
+# Fill in OAuth + Redis values
+npm run dev
+```
+Visit http://localhost:3000
+
+## Rialo integration status
+Ready to swap storage to on-chain when devnet access is granted.
+- Storage layer already routes proof writes through a single module
+- UI already displays a tx signature (placeholder now)
+
+When Rialo is available, the storage layer will write to a contract and store the real tx signature instead of the placeholder.
