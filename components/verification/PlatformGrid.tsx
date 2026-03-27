@@ -9,7 +9,7 @@ interface PlatformGridProps {
   onRevoke?: (platform: Platform) => Promise<void>;
   onUpdate?: (platform: Platform) => void;
   onConnect?: (platform: Platform) => void;
-  onFarcasterConnect?: (data: { fid: number; username: string; custody: string; signature: string }) => void;
+  onFarcasterConnect?: (data: { fid: number; username: string; custody: string; message: string; signature: string; nonce: string; domain: string; pfpUrl?: string }) => void;
 }
 
 export function PlatformGrid({ verifications, wallet, readOnly, onRevoke, onUpdate, onConnect, onFarcasterConnect }: PlatformGridProps) {

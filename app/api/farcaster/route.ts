@@ -26,11 +26,14 @@ export async function POST(req: NextRequest) {
       ethereum: viemConnector({ rpcUrl: process.env.FARCASTER_RPC_URL }),
     });
 
+    const rawSignature = String(signature);
+    const normalizedSignature = rawSignature.startsWith("0x") ? rawSignature : `0x${rawSignature}`;
+
     const verify = await appClient.verifySignInMessage({
       nonce: String(nonce),
       domain: String(domain),
       message: String(message),
-      signature: String(signature),
+      signature: normalizedSignature as `0x${string}`,
     });
 
     if (verify.isError || !verify.success) {
