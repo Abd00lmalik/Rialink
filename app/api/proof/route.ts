@@ -107,31 +107,39 @@ export async function POST(req: NextRequest) {
       platform,
     });
 
-    if (!verifiedSession) {
+    if (!verifiedSession.ok) {
+      const message =
+        verifiedSession.error === "expired_token"
+          ? "Verification token expired. Reconnect platform."
+          : verifiedSession.error === "wallet_mismatch"
+          ? "Verification token is bound to a different wallet."
+          : "Invalid verification token.";
       return NextResponse.json(
         {
           success: false,
-          error: "Verification session expired or invalid. Reconnect the platform.",
+          error: verifiedSession.error,
+          message,
         },
         { status: 401 }
       );
     }
+    const socialSession = verifiedSession.session;
 
     const verifiedAt = new Date().toISOString();
     const proofHash = computeProofHash({
       wallet,
       platform,
-      platformUserId: verifiedSession.userId,
+      platformUserId: socialSession.userId,
     });
 
     const bindingProof = createBindingProof({
       wallet,
       platform,
-      userId: verifiedSession.userId,
-      username: verifiedSession.username,
+      userId: socialSession.userId,
+      username: socialSession.username,
       proofHash,
-      proofMethod: verifiedSession.proofMethod,
-      socialSessionId: verifiedSession.id,
+      proofMethod: socialSession.proofMethod,
+      socialSessionId: socialSession.id,
       verifiedAt,
       walletProof,
     });
@@ -139,29 +147,29 @@ export async function POST(req: NextRequest) {
     const proof: ProofRecord = {
       wallet,
       platform,
-      userId: verifiedSession.userId,
-      username: verifiedSession.username,
+      userId: socialSession.userId,
+      username: socialSession.username,
       verified: true,
       verifiedAt,
-      proofMethod: verifiedSession.proofMethod,
+      proofMethod: socialSession.proofMethod,
       proofHash,
       bindingProof,
       txSignature: placeholderTxSignature({ wallet, platform, proofHash, verifiedAt }),
-      ...(verifiedSession.repoCount !== undefined
-        ? { repoCount: verifiedSession.repoCount }
+      ...(socialSession.repoCount !== undefined
+        ? { repoCount: socialSession.repoCount }
         : {}),
-      ...(verifiedSession.commitCount !== undefined
-        ? { commitCount: verifiedSession.commitCount }
+      ...(socialSession.commitCount !== undefined
+        ? { commitCount: socialSession.commitCount }
         : {}),
-      ...(verifiedSession.followerCount !== undefined
-        ? { followerCount: verifiedSession.followerCount }
+      ...(socialSession.followerCount !== undefined
+        ? { followerCount: socialSession.followerCount }
         : {}),
-      ...(verifiedSession.serverCount !== undefined
-        ? { serverCount: verifiedSession.serverCount }
+      ...(socialSession.serverCount !== undefined
+        ? { serverCount: socialSession.serverCount }
         : {}),
-      ...(verifiedSession.pfpUrl ? { pfpUrl: verifiedSession.pfpUrl } : {}),
-      ...(verifiedSession.accountCreatedAt
-        ? { accountCreatedAt: verifiedSession.accountCreatedAt }
+      ...(socialSession.pfpUrl ? { pfpUrl: socialSession.pfpUrl } : {}),
+      ...(socialSession.accountCreatedAt
+        ? { accountCreatedAt: socialSession.accountCreatedAt }
         : {}),
     };
 

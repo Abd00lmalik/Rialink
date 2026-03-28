@@ -1,6 +1,10 @@
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
+import nacl from "tweetnacl";
+import bs58 from "bs58";
+import { PublicKey } from "@solana/web3.js";
 import type { Platform } from "@/lib/types";
 import type { WalletProofPayload } from "@/lib/wallet-proof";
+import { computeProofHash } from "@/lib/proof-hash";
 
 export interface BindingProof {
   method: string;
@@ -14,7 +18,7 @@ export interface BindingProof {
   token: string;
 }
 
-interface BindingProofPayload {
+export interface BindingProofPayload {
   v: "verifyme-binding-v1";
   wallet: string;
   platform: Platform;
@@ -32,12 +36,22 @@ interface BindingProofPayload {
   };
 }
 
+type VerifyBindingProofResult =
+  | { valid: true; payload: BindingProofPayload }
+  | { valid: false; error: string };
+
 function base64UrlEncode(input: string): string {
   return Buffer.from(input, "utf8")
     .toString("base64")
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/g, "");
+}
+
+function base64UrlDecode(input: string): string {
+  const normalized = input.replace(/-/g, "+").replace(/_/g, "/");
+  const padding = "=".repeat((4 - (normalized.length % 4)) % 4);
+  return Buffer.from(normalized + padding, "base64").toString("utf8");
 }
 
 function getBindingSigningSecret() {
@@ -48,16 +62,57 @@ function getBindingSigningSecret() {
   return secret;
 }
 
-function signPayload(payload: BindingProofPayload): string {
+function signBody(body: string): string {
   const secret = getBindingSigningSecret();
-  const body = base64UrlEncode(JSON.stringify(payload));
-  const signature = createHmac("sha256", secret)
+  return createHmac("sha256", secret)
     .update(body)
     .digest("base64")
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/g, "");
-  return `${body}.${signature}`;
+}
+
+function isBindingPayload(value: unknown): value is BindingProofPayload {
+  if (!value || typeof value !== "object") return false;
+  const row = value as Record<string, unknown>;
+  const walletProof = row.walletProof as Record<string, unknown> | undefined;
+
+  return (
+    row.v === "verifyme-binding-v1" &&
+    typeof row.wallet === "string" &&
+    typeof row.platform === "string" &&
+    typeof row.userId === "string" &&
+    typeof row.username === "string" &&
+    typeof row.proofHash === "string" &&
+    typeof row.method === "string" &&
+    typeof row.socialSessionId === "string" &&
+    typeof row.verifiedAt === "string" &&
+    !!walletProof &&
+    typeof walletProof.nonce === "string" &&
+    typeof walletProof.issuedAt === "string" &&
+    typeof walletProof.message === "string" &&
+    typeof walletProof.signature === "string"
+  );
+}
+
+function verifyWalletSignature(payload: BindingProofPayload): boolean {
+  try {
+    const messageBytes = new TextEncoder().encode(payload.walletProof.message);
+    const signatureBytes = bs58.decode(payload.walletProof.signature);
+    const pubKey = new PublicKey(payload.wallet);
+    return nacl.sign.detached.verify(messageBytes, signatureBytes, pubKey.toBytes());
+  } catch {
+    return false;
+  }
+}
+
+function verifyWalletProofMessage(payload: BindingProofPayload): boolean {
+  const message = payload.walletProof.message;
+  // Basic anti-tamper checks so the proof must still reference the same wallet and nonce.
+  return (
+    message.includes(`Wallet: ${payload.wallet}`) &&
+    message.includes(`Nonce: ${payload.walletProof.nonce}`)
+  );
 }
 
 export function createBindingProof(args: {
@@ -89,6 +144,9 @@ export function createBindingProof(args: {
     },
   };
 
+  const body = base64UrlEncode(JSON.stringify(payload));
+  const signature = signBody(body);
+
   return {
     method: args.proofMethod,
     algorithm: "HS256",
@@ -98,6 +156,53 @@ export function createBindingProof(args: {
     walletNonce: args.walletProof.nonce,
     walletSignature: args.walletProof.signature,
     walletMessage: args.walletProof.message,
-    token: signPayload(payload),
+    token: `${body}.${signature}`,
   };
+}
+
+export function verifyBindingProofToken(token: string): VerifyBindingProofResult {
+  try {
+    const [body, signature] = String(token || "").split(".");
+    if (!body || !signature) {
+      return { valid: false, error: "Malformed binding proof" };
+    }
+
+    const expectedSignature = signBody(body);
+    const sigBuf = Buffer.from(signature);
+    const expBuf = Buffer.from(expectedSignature);
+    if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) {
+      return { valid: false, error: "Invalid binding proof signature" };
+    }
+
+    const decoded = JSON.parse(base64UrlDecode(body));
+    if (!isBindingPayload(decoded)) {
+      return { valid: false, error: "Invalid binding proof payload" };
+    }
+
+    // Deterministic anti-tamper check:
+    // recompute proof hash from wallet/platform/userId and compare with signed payload.
+    const expectedProofHash = computeProofHash({
+      wallet: decoded.wallet,
+      platform: decoded.platform,
+      platformUserId: decoded.userId,
+    });
+    if (decoded.proofHash !== expectedProofHash) {
+      return { valid: false, error: "Proof hash mismatch" };
+    }
+
+    if (!verifyWalletProofMessage(decoded)) {
+      return { valid: false, error: "Wallet proof message mismatch" };
+    }
+
+    if (!verifyWalletSignature(decoded)) {
+      return { valid: false, error: "Invalid wallet signature inside binding proof" };
+    }
+
+    return { valid: true, payload: decoded };
+  } catch (err) {
+    return {
+      valid: false,
+      error: err instanceof Error ? err.message : "Binding proof verification failed",
+    };
+  }
 }

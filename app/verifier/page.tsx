@@ -8,6 +8,7 @@ import { Divider } from "@/components/ui/Divider";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { APP_URL } from "@/lib/constants";
 import { POLICY_PRESETS } from "@/lib/policy";
+import { deriveTrustLevel, type TrustLevel } from "@/lib/trust-level";
 import type { ProofRecord } from "@/lib/types";
 
 const POLICY_OPTIONS = Object.entries(POLICY_PRESETS).map(([id, preset]) => ({
@@ -30,8 +31,11 @@ function VerifierDashboard() {
     accessToken?: string | null;
     expiresAt?: number | null;
   } | null>(null);
+  const [proofChecks, setProofChecks] = useState<Record<string, string>>({});
 
   const { copy: copyToken, copied: tokenCopied } = useCopyToClipboard();
+  const { copy: copyWallet, copied: walletCopied } = useCopyToClipboard();
+  const { copy: copyUsername, copied: usernameCopied } = useCopyToClipboard();
 
   const vmCardUrl = useMemo(() => {
     if (!walletResult) return "";
@@ -52,6 +56,7 @@ function VerifierDashboard() {
     setWalletResult(trimmed);
     setProofs([]);
     setPolicyResult(null);
+    setProofChecks({});
 
     try {
       const res = await fetch(`/api/proof?wallet=${encodeURIComponent(trimmed)}`);
@@ -113,8 +118,57 @@ function VerifierDashboard() {
   );
 
   const verifiedCount = platformStatus.filter((p) => p.verified).length;
-  const riskLabel =
-    verifiedCount >= 2 ? "Low risk signal" : verifiedCount === 1 ? "Medium risk signal" : "High risk signal";
+  const trustLevel: TrustLevel = useMemo(() => deriveTrustLevel(proofs), [proofs]);
+  const trustLabel =
+    trustLevel === "high"
+      ? "High Trust Wallet"
+      : trustLevel === "medium"
+      ? "Medium Trust Wallet"
+      : "Low Trust Wallet";
+
+  const formatMethod = useCallback((method: string) => {
+    if (method === "oauth+wallet-signature") return "OAuth + wallet signature";
+    if (method === "farcaster-signin+wallet-signature") {
+      return "Farcaster sign-in + wallet signature";
+    }
+    return method;
+  }, []);
+
+  const handleVerifyProof = useCallback(async (proof: ProofRecord) => {
+    const key = `${proof.platform}-${proof.userId}`;
+    const token = proof.bindingProof?.token || "";
+    if (!token) {
+      setProofChecks((prev) => ({ ...prev, [key]: "No binding proof token found" }));
+      return;
+    }
+
+    setProofChecks((prev) => ({ ...prev, [key]: "Verifying..." }));
+    try {
+      const res = await fetch("/api/verify-proof", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ binding_proof: token }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.valid) {
+        setProofChecks((prev) => ({
+          ...prev,
+          [key]: `Invalid proof: ${data?.error || "verification failed"}`,
+        }));
+        return;
+      }
+
+      setProofChecks((prev) => ({
+        ...prev,
+        [key]: `Valid proof for ${data.platform}:${data.username}`,
+      }));
+    } catch {
+      setProofChecks((prev) => ({
+        ...prev,
+        [key]: "Proof verification request failed",
+      }));
+    }
+  }, []);
 
   return (
     <div style={{ maxWidth: "880px", margin: "0 auto", padding: "96px 24px 80px" }}>
@@ -177,7 +231,15 @@ function VerifierDashboard() {
               <p style={{ fontSize: "12px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "4px" }}>
                 Wallet
               </p>
-              <AddressDisplay address={walletResult} />
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <AddressDisplay address={walletResult} />
+                <button
+                  onClick={() => copyWallet(walletResult)}
+                  style={{ height: "28px", padding: "0 8px", borderRadius: "8px", border: "1px solid var(--border-default)", background: "transparent", color: "var(--text-secondary)", fontSize: "12px", cursor: "pointer" }}
+                >
+                  {walletCopied ? "Copied" : "Copy wallet"}
+                </button>
+              </div>
             </div>
             {vmCardUrl && (
               <a
@@ -214,9 +276,9 @@ function VerifierDashboard() {
                 ))}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px", color: verifiedCount >= 2 ? "var(--success)" : "var(--text-secondary)" }}>
-                {verifiedCount >= 2 ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
+                {trustLevel === "high" ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
                 <p style={{ margin: 0, fontSize: "13px" }}>
-                  {riskLabel} ({verifiedCount}/3 platforms verified)
+                  {trustLabel} ({verifiedCount}/3 platforms verified)
                 </p>
               </div>
               {error && (
@@ -251,8 +313,27 @@ function VerifierDashboard() {
                         Verified at: {new Date(proof.verifiedAt).toLocaleString()}
                       </p>
                       <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                        Proof method: {proof.proofMethod}
+                        Proof method: {formatMethod(proof.proofMethod)}
                       </p>
+                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "8px" }}>
+                        <button
+                          onClick={() => copyUsername(proof.username)}
+                          style={{ height: "28px", padding: "0 8px", borderRadius: "8px", border: "1px solid var(--border-default)", background: "transparent", color: "var(--text-secondary)", fontSize: "12px", cursor: "pointer" }}
+                        >
+                          {usernameCopied ? "Copied" : "Copy username"}
+                        </button>
+                        <button
+                          onClick={() => handleVerifyProof(proof)}
+                          style={{ height: "28px", padding: "0 8px", borderRadius: "8px", border: "1px solid var(--border-default)", background: "transparent", color: "var(--text-secondary)", fontSize: "12px", cursor: "pointer" }}
+                        >
+                          Verify this proof
+                        </button>
+                      </div>
+                      {proofChecks[`${proof.platform}-${proof.userId}`] && (
+                        <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "6px" }}>
+                          {proofChecks[`${proof.platform}-${proof.userId}`]}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
