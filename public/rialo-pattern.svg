@@ -1,7 +1,0 @@
-<svg width="480" height="260" viewBox="0 0 480 260" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <g stroke="#DEDACC" stroke-width="34" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M-20 48H128C156 48 170 62 170 90V132C170 160 184 174 212 174H328C356 174 370 160 370 132V102C370 74 384 60 412 60H500"/>
-    <path d="M-40 214H84C112 214 126 200 126 172V150C126 122 140 108 168 108H252C280 108 294 94 294 66V42C294 14 308 0 336 0H438"/>
-  </g>
-  <circle cx="288" cy="138" r="14" fill="#DEDACC"/>
-</svg>
