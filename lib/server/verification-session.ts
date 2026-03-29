@@ -5,12 +5,16 @@ import type { Platform } from "@/lib/types";
 const redis = Redis.fromEnv();
 
 const OAUTH_REQUEST_PREFIX = "oauth:request:";
+const OAUTH_USED_PREFIX = "oauth:used:";
+const OAUTH_LOCK_PREFIX = "oauth:lock:";
 const VERIFIED_SOCIAL_PREFIX = "verify:session:";
 const VERIFIED_SOCIAL_META_PREFIX = "verify:session:meta:";
 const VERIFIED_SOCIAL_USED_PREFIX = "verify:session:used:";
 const VERIFIED_SOCIAL_LOCK_PREFIX = "verify:session:lock:";
 
 const OAUTH_REQUEST_TTL_SECONDS = 10 * 60;
+const OAUTH_USED_TTL_SECONDS = 10 * 60;
+const OAUTH_LOCK_TTL_SECONDS = 30;
 const VERIFIED_SOCIAL_TTL_SECONDS = 10 * 60;
 const VERIFIED_SOCIAL_META_TTL_SECONDS = 24 * 60 * 60;
 const VERIFIED_SOCIAL_USED_TTL_SECONDS = 24 * 60 * 60;
@@ -54,7 +58,8 @@ interface VerifiedSocialSessionMeta {
 export type VerificationTokenErrorCode =
   | "expired_token"
   | "invalid_token"
-  | "wallet_mismatch";
+  | "wallet_mismatch"
+  | "platform_mismatch";
 
 export type ConsumeVerificationResult =
   | { ok: true; session: VerifiedSocialSession }
@@ -70,6 +75,14 @@ function randomToken() {
 
 function oauthRequestKey(token: string) {
   return `${OAUTH_REQUEST_PREFIX}${token}`;
+}
+
+function oauthUsedKey(token: string) {
+  return `${OAUTH_USED_PREFIX}${token}`;
+}
+
+function oauthLockKey(token: string) {
+  return `${OAUTH_LOCK_PREFIX}${token}`;
 }
 
 function verifiedSocialKey(token: string) {
@@ -116,15 +129,35 @@ export async function consumeOAuthRequestSession(
   token: string,
   expectedPlatform: Exclude<Platform, "farcaster">
 ): Promise<OAuthRequestSession | null> {
-  const key = oauthRequestKey(token);
-  const session = await redis.get<OAuthRequestSession>(key);
-  if (!session) return null;
-  if (session.platform !== expectedPlatform || isExpired(session.expiresAt)) {
+  const normalized = String(token || "").trim();
+  if (!normalized) return null;
+
+  const alreadyUsed = await redis.get<string>(oauthUsedKey(normalized));
+  if (alreadyUsed) return null;
+
+  const lockKey = oauthLockKey(normalized);
+  const lockAcquired = await redis.set(lockKey, "1", {
+    nx: true,
+    ex: OAUTH_LOCK_TTL_SECONDS,
+  });
+  if (!lockAcquired) return null;
+
+  try {
+    const key = oauthRequestKey(normalized);
+    const session = await redis.get<OAuthRequestSession>(key);
+    if (!session) return null;
+    if (session.platform !== expectedPlatform || isExpired(session.expiresAt)) {
+      await redis.del(key);
+      await redis.set(oauthUsedKey(normalized), "1", { ex: OAUTH_USED_TTL_SECONDS });
+      return null;
+    }
     await redis.del(key);
-    return null;
+    // Mark consumed to guarantee one-time use even under callback retries.
+    await redis.set(oauthUsedKey(normalized), "1", { ex: OAUTH_USED_TTL_SECONDS });
+    return session;
+  } finally {
+    await redis.del(lockKey);
   }
-  await redis.del(key);
-  return session;
 }
 
 export async function issueVerifiedSocialSession(args: {
@@ -212,7 +245,7 @@ export async function consumeVerifiedSocialSession(args: {
     return { ok: false, error: "wallet_mismatch" };
   }
   if (activeSession.platform !== args.platform) {
-    return { ok: false, error: "invalid_token" };
+    return { ok: false, error: "platform_mismatch" };
   }
   if (isExpired(activeSession.expiresAt)) {
     await redis.del(activeKey);
@@ -238,7 +271,7 @@ export async function consumeVerifiedSocialSession(args: {
       return { ok: false, error: "wallet_mismatch" };
     }
     if (lockedSession.platform !== args.platform) {
-      return { ok: false, error: "invalid_token" };
+      return { ok: false, error: "platform_mismatch" };
     }
     if (isExpired(lockedSession.expiresAt)) {
       await redis.del(activeKey);

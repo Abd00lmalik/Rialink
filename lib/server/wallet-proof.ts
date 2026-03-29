@@ -3,12 +3,22 @@ import nacl from "tweetnacl";
 import bs58 from "bs58";
 import { PublicKey } from "@solana/web3.js";
 import type { WalletProofPayload } from "@/lib/wallet-proof";
+import { buildWalletProofMessage } from "@/lib/wallet-proof";
 
 const redis = Redis.fromEnv();
 const CHALLENGE_TTL_SECONDS = 10 * 60;
 
 function challengeKey(wallet: string) {
   return `challenge:${wallet}`;
+}
+
+function extractDomainFromWalletMessage(message: string): string | null {
+  const lines = message.split("\n");
+  const domainLine = lines.find((line) => line.startsWith("Domain: "));
+  if (!domainLine) return null;
+  const domain = domainLine.slice("Domain: ".length).trim();
+  if (!domain || /\s/.test(domain)) return null;
+  return domain;
 }
 
 export async function issueWalletChallenge(wallet: string) {
@@ -22,14 +32,29 @@ export async function verifyWalletProof(wallet: string, proof: WalletProofPayloa
   if (!proof || !proof.message || !proof.signature || !proof.nonce) {
     return { ok: false, error: "Missing wallet proof" };
   }
+  if (proof.wallet !== wallet) {
+    return { ok: false, error: "Wallet proof wallet mismatch" };
+  }
+  if (!proof.issuedAt || !Number.isFinite(Date.parse(proof.issuedAt))) {
+    return { ok: false, error: "Wallet proof issuedAt is invalid" };
+  }
 
   const expected = await redis.get<string>(challengeKey(wallet));
   if (!expected || expected !== proof.nonce) {
     return { ok: false, error: "Wallet proof expired or invalid" };
   }
 
-  // basic message sanity check
-  if (!proof.message.includes(`Wallet: ${wallet}`) || !proof.message.includes(`Nonce: ${proof.nonce}`)) {
+  const domain = extractDomainFromWalletMessage(proof.message);
+  if (!domain) {
+    return { ok: false, error: "Wallet proof message mismatch" };
+  }
+  const expectedMessage = buildWalletProofMessage({
+    wallet,
+    nonce: proof.nonce,
+    issuedAt: proof.issuedAt,
+    domain,
+  });
+  if (proof.message !== expectedMessage) {
     return { ok: false, error: "Wallet proof message mismatch" };
   }
 
