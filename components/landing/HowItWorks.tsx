@@ -4,7 +4,7 @@ const STEPS = [
   {
     num: "01",
     title: "Connect and sign your wallet challenge",
-    body: "VerifyMe issues a short-lived nonce. You sign a canonical wallet message so we can prove wallet ownership without exposing private keys.",
+    body: "Rialink issues a short-lived nonce. You sign a canonical wallet message so we can prove wallet ownership without exposing private keys.",
   },
   {
     num: "02",
@@ -61,3 +61,4 @@ export function HowItWorks() {
     </section>
   );
 }
+

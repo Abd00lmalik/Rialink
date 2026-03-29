@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "crypto";
+﻿import { createHmac, timingSafeEqual } from "crypto";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
 import { PublicKey } from "@solana/web3.js";
@@ -20,7 +20,7 @@ export interface BindingProof {
 }
 
 export interface BindingProofPayload {
-  v: "verifyme-binding-v1";
+  v: "rialink-binding-v1";
   wallet: string;
   platform: Platform;
   userId: string;
@@ -124,7 +124,7 @@ function isBindingPayload(value: unknown): value is BindingProofPayload {
   const walletProof = row.walletProof as Record<string, unknown> | undefined;
 
   return (
-    row.v === "verifyme-binding-v1" &&
+    row.v === "rialink-binding-v1" &&
     typeof row.wallet === "string" &&
     row.wallet.length > 0 &&
     typeof row.platform === "string" &&
@@ -202,7 +202,7 @@ export function createBindingProof(args: {
   walletProof: WalletProofPayload;
 }): BindingProof {
   const payload: BindingProofPayload = {
-    v: "verifyme-binding-v1",
+    v: "rialink-binding-v1",
     wallet: args.wallet,
     platform: args.platform,
     userId: args.userId,
@@ -225,7 +225,7 @@ export function createBindingProof(args: {
   return {
     method: args.proofMethod,
     algorithm: "HS256",
-    verifier: "verifyme-api",
+    verifier: "rialink-api",
     issuedAt: args.verifiedAt,
     socialSessionId: args.socialSessionId,
     walletNonce: args.walletProof.nonce,
@@ -321,3 +321,4 @@ export function verifyBindingProofToken(token: string): VerifyBindingProofResult
     };
   }
 }
+

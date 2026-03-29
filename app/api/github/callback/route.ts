@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import {
   consumeOAuthRequestSession,
   issueVerifiedSocialSession,
@@ -16,7 +16,7 @@ async function getCommitCountFromRecentPublicEvents(
       {
         headers: {
           Authorization: `Bearer ${token}`,
-          "User-Agent": "VerifyMe",
+          "User-Agent": "Rialink",
           Accept: "application/vnd.github+json",
         },
         cache: "no-store",
@@ -62,7 +62,7 @@ async function getCommitCountFromContributionsApi(
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
-        "User-Agent": "VerifyMe",
+        "User-Agent": "Rialink",
         "Content-Type": "application/json",
         Accept: "application/json",
       },
@@ -152,7 +152,7 @@ export async function GET(req: NextRequest) {
     const userRes = await fetch("https://api.github.com/user", {
       headers: {
         Authorization: `Bearer ${token}`,
-        "User-Agent": "VerifyMe",
+        "User-Agent": "Rialink",
         Accept: "application/vnd.github+json",
       },
       cache: "no-store",
@@ -197,3 +197,4 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+

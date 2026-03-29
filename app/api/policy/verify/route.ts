@@ -1,4 +1,4 @@
-import crypto from "crypto";
+﻿import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -31,7 +31,7 @@ function base64UrlDecode(input: string): string {
 }
 
 function signPayload(encodedPayload: string): string {
-  const secret = process.env.PROOF_SECRET || "verifyme-secret";
+  const secret = process.env.PROOF_SECRET || "rialink-secret";
   return crypto
     .createHmac("sha256", secret)
     .update(encodedPayload)
@@ -131,3 +131,4 @@ export async function POST(req: NextRequest) {
     })
   );
 }
+

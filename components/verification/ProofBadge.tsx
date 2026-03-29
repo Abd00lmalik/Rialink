@@ -35,7 +35,7 @@ export function ProofBadge({ wallet, verifications }: ProofBadgeProps) {
     }}>
       {/* Top row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-        <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>VerifyMe</span>
+        <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>Rialink</span>
         <span style={{
           background: 'var(--accent-muted)', color: 'var(--accent-text)',
           borderRadius: '6px', padding: '2px 6px', fontSize: '11px',
@@ -91,4 +91,5 @@ export function ProofBadge({ wallet, verifications }: ProofBadgeProps) {
     </div>
   );
 }
+
 

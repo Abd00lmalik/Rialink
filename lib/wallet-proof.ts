@@ -1,4 +1,4 @@
-export interface WalletProofPayload {
+﻿export interface WalletProofPayload {
   wallet: string;
   nonce: string;
   message: string;
@@ -14,7 +14,7 @@ export function buildWalletProofMessage(args: {
 }) {
   const { wallet, nonce, issuedAt, domain } = args;
   return [
-    "VerifyMe Wallet Ownership Proof",
+    "Rialink Wallet Ownership Proof",
     "",
     `Wallet: ${wallet}`,
     `Nonce: ${nonce}`,
@@ -22,4 +22,5 @@ export function buildWalletProofMessage(args: {
     `Domain: ${domain}`,
   ].join("\n");
 }
+
 

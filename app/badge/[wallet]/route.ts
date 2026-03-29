@@ -40,7 +40,7 @@ export async function GET(_req: Request, context: { params: { wallet: string } }
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>VerifyMe Badge</title>
+<title>Rialink Badge</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -100,7 +100,7 @@ export async function GET(_req: Request, context: { params: { wallet: string } }
 <body>
   <div class="card">
     <div class="top">
-      <span class="tag">VerifyMe</span>
+      <span class="tag">Rialink</span>
       <span class="wallet">${escapeHtml(shortWallet(wallet))}</span>
     </div>
     <div class="grid">${rows}</div>

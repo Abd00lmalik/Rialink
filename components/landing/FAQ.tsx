@@ -18,7 +18,7 @@ const FAQS = [
   },
   {
     q: "Can I remove a verification?",
-    a: "Yes. You can disconnect a platform from your dashboard. In beta this removes it from your VerifyMe record; once anchoring is enabled, it will publish an update as well.",
+    a: "Yes. You can disconnect a platform from your dashboard. In beta this removes it from your Rialink record; once anchoring is enabled, it will publish an update as well.",
   },
   {
     q: "Why Rialo?",
@@ -87,3 +87,4 @@ export function FAQ() {
     </section>
   );
 }
+

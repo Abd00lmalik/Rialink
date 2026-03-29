@@ -1,4 +1,4 @@
-import { Redis } from "@upstash/redis";
+﻿import { Redis } from "@upstash/redis";
 import { createHash } from "crypto";
 import type { Platform, ProofRecord } from "@/lib/types";
 import { cardIdFromWallet } from "@/lib/card-id";
@@ -117,7 +117,7 @@ function computeIdentityRoot(proofs: ProofRecord[]): string | null {
   const hashes = proofs.map((p) => p.proofHash).filter(Boolean).sort();
   if (hashes.length === 0) return null;
   return createHash("sha256")
-    .update(`verifyme:root:v1|${hashes.join("|")}`)
+    .update(`rialink:root:v1|${hashes.join("|")}`)
     .digest("hex");
 }
 
@@ -277,3 +277,4 @@ export async function resolveWalletFromCardId(cardId: string): Promise<string | 
 
   return null;
 }
+

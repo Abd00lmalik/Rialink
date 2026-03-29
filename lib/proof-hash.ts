@@ -1,7 +1,7 @@
 ﻿import { createHash } from "crypto";
 import type { Platform } from "@/lib/types";
 
-const SPEC_PREFIX = "verifyme:v1";
+const SPEC_PREFIX = "rialink:v1";
 
 function sha256Hex(input: string): string {
   return createHash("sha256").update(input, "utf8").digest("hex");
@@ -25,3 +25,4 @@ export function computeUsernameHash(args: {
   const username = String(args.username).trim().toLowerCase();
   return sha256Hex(`${SPEC_PREFIX}|username|${args.platform}|${username}`);
 }
+

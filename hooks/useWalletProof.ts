@@ -1,11 +1,11 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import bs58 from "bs58";
 import { buildWalletProofMessage, WalletProofPayload } from "@/lib/wallet-proof";
 
-const STORAGE_PREFIX = "verifyme_wallet_proof_";
+const STORAGE_PREFIX = "rialink_wallet_proof_";
 
 export function getStoredWalletProof(wallet: string): WalletProofPayload | null {
   if (typeof window === "undefined") return null;
@@ -60,4 +60,5 @@ export function useWalletProof() {
 
   return { ensureWalletProof, isSigning };
 }
+
 

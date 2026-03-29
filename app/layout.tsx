@@ -8,7 +8,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 
 export const metadata: Metadata = {
-  title: "VerifyMe - Decentralized Identity on Rialo",
+  title: "Rialink - Decentralized Identity on Rialo",
   description: "Link your GitHub, Discord, and Farcaster accounts to your wallet. Permanent, cryptographic proof on the Rialo blockchain.",
 };
 
@@ -33,3 +33,4 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
+

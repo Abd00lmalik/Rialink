@@ -79,10 +79,10 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
       return;
     }
     if (platform === "github") {
-      localStorage.setItem("verifyme_pending_wallet", wallet);
+      localStorage.setItem("rialink_pending_wallet", wallet);
       window.location.href = `/api/github?wallet=${wallet}`;
     } else if (platform === "discord") {
-      localStorage.setItem("verifyme_pending_wallet", wallet);
+      localStorage.setItem("rialink_pending_wallet", wallet);
       window.location.href = `/api/discord?wallet=${wallet}`;
     }
   }, [platform, wallet, onConnect]);
@@ -233,6 +233,7 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
     </div>
   );
 }
+
 
 
 

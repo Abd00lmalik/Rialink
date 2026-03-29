@@ -1,4 +1,4 @@
-import type { ProofRecord } from "./types";
+﻿import type { ProofRecord } from "./types";
 
 export const MOCK_WALLET = "7xKmW3RqPbN9eDfTvL2sY6hJcA4mX8uZ1nQrV5wE3pk";
 
@@ -6,12 +6,12 @@ function mockBindingProof(id: string, nonce: string): ProofRecord["bindingProof"
   return {
     method: "oauth+wallet-signature",
     algorithm: "HS256",
-    verifier: "verifyme-api",
+    verifier: "rialink-api",
     issuedAt: "2026-03-26T10:00:00Z",
     socialSessionId: id,
     walletNonce: nonce,
     walletSignature: "mock-signature",
-    walletMessage: "VerifyMe Wallet Ownership Proof",
+    walletMessage: "Rialink Wallet Ownership Proof",
     token: `mock-token-${id}`,
   };
 }
@@ -68,3 +68,4 @@ export const MOCK_PROOFS: ProofRecord[] = [
     pfpUrl: "https://i.pravatar.cc/120?img=15",
   },
 ];
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -58,7 +58,7 @@ function VerifyDashboard() {
     const errorParam = searchParams.get("error");
 
     // Resolve wallet: prefer connected wallet, fall back to localStorage
-    const resolvedWallet = wallet || localStorage.getItem("verifyme_pending_wallet");
+    const resolvedWallet = wallet || localStorage.getItem("rialink_pending_wallet");
 
     if (errorParam && platform) {
       const msg = searchParams.get("message") || "Verification failed";
@@ -102,7 +102,7 @@ function VerifyDashboard() {
           if (!res.ok || !data?.success) {
             throw new Error(data?.error || "Could not save proof");
           }
-          localStorage.removeItem("verifyme_pending_wallet");
+          localStorage.removeItem("rialink_pending_wallet");
           await refetch();
           showToast(
             "success",
@@ -124,7 +124,7 @@ function VerifyDashboard() {
 
   const startOAuth = useCallback(
     (platform: Platform, addr: string) => {
-      localStorage.setItem("verifyme_pending_wallet", addr);
+      localStorage.setItem("rialink_pending_wallet", addr);
       if (platform === "github") {
         window.location.href = `/api/github?wallet=${addr}`;
       } else if (platform === "discord") {
@@ -275,7 +275,7 @@ function VerifyDashboard() {
           </div>
           <h2 style={{ fontSize: "22px", fontWeight: 600, letterSpacing: "-0.01em", color: "var(--text-primary)", marginBottom: "10px" }}>Connect your wallet</h2>
           <p style={{ fontSize: "14px", color: "var(--text-secondary)", marginBottom: "24px", lineHeight: 1.65 }}>
-            VerifyMe works with SVM wallets. Your private key never leaves your device.
+            Rialink works with SVM wallets. Your private key never leaves your device.
           </p>
           <button onClick={() => setVisible(true)} style={{ width: "100%", height: "44px", borderRadius: "10px", background: "var(--accent)", color: "var(--text-inverse)", border: "none", cursor: "pointer", fontSize: "15px", fontWeight: 500, fontFamily: "inherit" }} className="btn-primary">
             Connect wallet
@@ -416,3 +416,4 @@ export default function VerifyPage() {
     </Suspense>
   );
 }
+

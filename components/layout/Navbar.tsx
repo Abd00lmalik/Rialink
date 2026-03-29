@@ -35,7 +35,7 @@ export function Navbar() {
         {/* Logo */}
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           <span style={{ fontSize: '16px', fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
-            VerifyMe
+            Rialink
           </span>
           <span style={{
             background: 'var(--accent-muted)', color: 'var(--accent-text)',
@@ -88,6 +88,7 @@ export function Navbar() {
     </nav>
   );
 }
+
 
 
 

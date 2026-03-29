@@ -1,6 +1,6 @@
-# VerifyMe - Wallet-Linked Identity Attestation on Rialo
+﻿# Rialink - Wallet-Linked Identity Attestation on Rialo
 
-VerifyMe is a Web3 identity attestation dApp that binds a wallet to public social identities (GitHub, Discord, Farcaster), then exposes trust signals for people and apps to consume.
+Rialink is a Web3 identity attestation dApp that binds a wallet to public social identities (GitHub, Discord, Farcaster), then exposes trust signals for people and apps to consume.
 
 It is built with:
 - Next.js 14 App Router
@@ -11,13 +11,13 @@ It is built with:
 - Farcaster auth kit
 
 Live app:
-- `https://verifyme-two.vercel.app`
+- `https://rialink-two.vercel.app`
 
 ---
 
-## 1. What VerifyMe Does
+## 1. What Rialink Does
 
-VerifyMe lets a wallet owner prove:
+Rialink lets a wallet owner prove:
 - "I control this wallet"
 - "I also control these social accounts"
 
@@ -38,7 +38,7 @@ Wallets are pseudonymous by default. For DAOs, grant programs, bounties, and com
 - easy for sybil wallets to appear legitimate
 - no standard reusable "identity trust layer" across dApps
 
-VerifyMe solves this by creating portable wallet-linked trust signals that can be consumed by any app through simple API calls.
+Rialink solves this by creating portable wallet-linked trust signals that can be consumed by any app through simple API calls.
 
 ---
 
@@ -152,7 +152,7 @@ Current protections include:
 
 ## 7. Privacy Model
 
-VerifyMe is built as a low-PII trust layer.
+Rialink is built as a low-PII trust layer.
 
 Stored:
 - wallet address
@@ -240,7 +240,7 @@ When checks pass, server issues `vm_...` access token signed with HMAC-SHA256.
 
 ## 12. Rialo Integration (Current and Future Architecture)
 
-VerifyMe currently stores proofs off-chain (Redis) and exposes them via APIs.  
+Rialink currently stores proofs off-chain (Redis) and exposes them via APIs.  
 The architecture is intentionally designed so integrator-facing APIs can remain stable while trust moves on-chain over time.
 
 ### Current state
@@ -261,3 +261,77 @@ The architecture is intentionally designed so integrator-facing APIs can remain 
 - Preserve historical proof lineage.
 
 #### Phase 3 - On-chain policy attestations
+- Option A: off-chain policy evaluation + on-chain attestation hash.
+- Option B: deterministic policy evaluation in on-chain program logic.
+
+### Potential contract interface (example)
+- `upsert_identity_root(wallet, root, version, metadata_hash)`
+- `set_platform_commitment(wallet, platform, leaf_hash, verified_at)`
+- `revoke_platform(wallet, platform, reason_code)`
+- `get_identity(wallet)`
+
+### Rialo technology alignment
+Based on Rialo public materials, Rialink can align with:
+- Rialo VM / SVM compatibility:
+  - wallet tooling and transaction model continuity
+- Reactive execution:
+  - automatic policy refresh on state changes
+- Workflow and automation:
+  - scheduled re-verification and expiry sweeps
+- IPC/privacy capabilities:
+  - commitment-based proofs with private metadata handling
+- data/read-path acceleration:
+  - faster query response for high-traffic gating
+- gasless UX paths:
+  - sponsored proof anchoring for users
+
+---
+
+## 13. Consultant Notes and Scope Signals
+
+What makes this project meaningful:
+- clear real-world utility (grant gating, bounty integrity, community trust)
+- privacy-preserving alternative to heavy KYC workflows
+- API-first design that external dApps can adopt quickly
+- migration-ready architecture from off-chain to on-chain trust anchoring
+
+What to evaluate before scale-up:
+- rate limiting and abuse controls for public APIs
+- explicit SLOs for proof freshness and revocation latency
+- key management and rotation for signing secrets
+- indexer strategy for on-chain read performance
+- backward compatibility guarantees for API versions
+
+---
+
+## 14. Environment Variables
+
+Key variables used in this codebase:
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
+- `GITHUB_CLIENT_ID`
+- `GITHUB_CLIENT_SECRET`
+- `GITHUB_REDIRECT_URI`
+- `DISCORD_CLIENT_ID`
+- `DISCORD_CLIENT_SECRET`
+- `DISCORD_REDIRECT_URI`
+- `FARCASTER_RPC_URL`
+- `NEXT_PUBLIC_FARCASTER_RELAY_URL`
+- `NEXT_PUBLIC_APP_URL`
+- `NEXT_PUBLIC_RIALO_RPC_URL`
+- `NEXT_PUBLIC_RIALO_EXPLORER_URL`
+- `POLICY_SIGNING_SECRET`
+- `PROOF_SIGNING_SECRET`
+- `PROOF_SECRET`
+- `POLICY_TOKEN_TTL_SECONDS`
+
+---
+
+## 15. Local Development
+
+```bash
+npm install
+cp .env.local.example .env.local
+npm run dev
+```
+

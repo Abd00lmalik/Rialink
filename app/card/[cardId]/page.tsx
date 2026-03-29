@@ -61,7 +61,7 @@ export default async function CardPage({ params }: { params: { cardId: string } 
         >
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
             <div>
-              <div style={{ fontSize: 12, color: "#0f766e", fontWeight: 700 }}>VERIFYME | RIALO</div>
+              <div style={{ fontSize: 12, color: "#0f766e", fontWeight: 700 }}>RIALINK | RIALO</div>
               <div style={{ fontSize: 32, fontWeight: 800, lineHeight: 1 }}>{proofs.length}/3</div>
               <div style={{ fontSize: 12, color: "#334155" }}>Verified socials</div>
             </div>

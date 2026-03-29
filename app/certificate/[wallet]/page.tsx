@@ -104,7 +104,7 @@ export default function CertificatePage({ params }: { params: { wallet: string }
   }, [topProof, wallet]);
 
   const shareUrl = typeof window !== "undefined" ? window.location.href : `${APP_URL}/certificate/${wallet}`;
-  const xText = encodeURIComponent(`My VerifyMe VM Card score is ${score.total}/100 on Rialo Devnet.`);
+  const xText = encodeURIComponent(`My Rialink VM Card score is ${score.total}/100 on Rialo Devnet.`);
   const xUrl = `https://twitter.com/intent/tweet?text=${xText}&url=${encodeURIComponent(shareUrl)}`;
 
   function copyLink() {
@@ -144,7 +144,7 @@ export default function CertificatePage({ params }: { params: { wallet: string }
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
               <div>
                 <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "#0f766e", fontWeight: 700 }}>
-                  VerifyMe | Rialo
+                  Rialink | Rialo
                 </div>
                 <div style={{ marginTop: 2, fontSize: 30, fontWeight: 800, color: "#0f172a", lineHeight: 1 }}>{score.total}/100</div>
               </div>
