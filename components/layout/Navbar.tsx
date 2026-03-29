@@ -66,7 +66,7 @@ export function Navbar() {
               fontWeight: 500,
             }}
           >
-            on Rialo
+            BetaPhase
           </span>
         </Link>
 

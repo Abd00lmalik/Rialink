@@ -25,7 +25,7 @@ export function Hero() {
         <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", marginBottom: "32px" }}>
           <span style={{ background: "var(--accent-muted)", color: "var(--accent-text)", border: "1px solid rgba(92,225,230,0.15)", borderRadius: "999px", padding: "4px 10px", fontSize: "12px", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: "5px" }}>
             <span className="pulse-dot" style={{ color: "var(--accent)" }}>*</span>
-            Live on Rialo Devnet
+            BetaPhase
           </span>
         </div>
 
