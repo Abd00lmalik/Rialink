@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { Modal } from "@/components/ui/Modal";
-import { formatDate } from "@/lib/utils";
+import { formatDate, maskUsername } from "@/lib/utils";
 import { EXPLORER_URL } from "@/lib/constants";
 import type { Platform, VerificationState } from "@/lib/types";
 
@@ -66,6 +66,10 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
   const Icon = PLATFORM_ICONS[platform];
   const color = PLATFORM_COLORS[platform];
   const platformLabel = platform.charAt(0).toUpperCase() + platform.slice(1);
+  const displayUsername =
+    proof && platform === "farcaster"
+      ? maskUsername(proof.username)
+      : proof?.username || "";
   const [showRevokeModal, setShowRevokeModal] = useState(false);
   const [revoking, setRevoking] = useState(false);
 
@@ -148,12 +152,12 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
                 <img src={proof.pfpUrl} alt="avatar" style={{ width: "44px", height: "44px", borderRadius: "50%", objectFit: "cover", border: "2px solid var(--border-default)", flexShrink: 0 }} />
               ) : (
                 <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", fontWeight: 700, color: "#fff", flexShrink: 0, opacity: 0.8 }}>
-                  {proof.username?.[0]?.toUpperCase() || "?"}
+                  {displayUsername?.[0]?.toUpperCase() || "?"}
                 </div>
               )}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "monospace", marginBottom: "2px" }}>
-                  {proof.username}
+                  {displayUsername}
                 </p>
                 <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
                   <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>

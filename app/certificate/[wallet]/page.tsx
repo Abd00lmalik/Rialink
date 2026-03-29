@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ProofRecord } from "@/lib/types";
 import { APP_URL } from "@/lib/constants";
 import { cardIdFromWallet } from "@/lib/card-id";
+import { maskUsername } from "@/lib/utils";
 const ORDER = ["github", "discord", "farcaster"] as const;
 
 function shortWallet(wallet: string) {
@@ -94,6 +95,13 @@ export default function CertificatePage({ params }: { params: { wallet: string }
   const issueDate = proofs.length > 0 ? fmtDate(proofs[proofs.length - 1].verifiedAt) : fmtDate(new Date().toISOString());
   const cardId = useMemo(() => cardIdFromWallet(wallet), [wallet]);
   const topProof = useMemo(() => proofs.find((p) => p.pfpUrl) || proofs[0], [proofs]);
+  const topDisplayName = useMemo(() => {
+    if (!topProof) return shortWallet(wallet);
+    if (topProof.platform === "farcaster") {
+      return maskUsername(topProof.username);
+    }
+    return topProof.username || shortWallet(wallet);
+  }, [topProof, wallet]);
 
   const shareUrl = typeof window !== "undefined" ? window.location.href : `${APP_URL}/certificate/${wallet}`;
   const xText = encodeURIComponent(`My VerifyMe VM Card score is ${score.total}/100 on Rialo Devnet.`);
@@ -186,7 +194,7 @@ export default function CertificatePage({ params }: { params: { wallet: string }
 
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 11, color: "#64748b" }}>Profile</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{topProof?.username || shortWallet(wallet)}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{topDisplayName}</div>
               </div>
 
               <div style={{ marginLeft: "auto", textAlign: "right", fontSize: 10, color: "#475569" }}>

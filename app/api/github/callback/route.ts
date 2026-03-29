@@ -6,7 +6,10 @@ import {
 
 export const runtime = "nodejs";
 
-async function getCommitCount(login: string, token: string): Promise<number> {
+async function getCommitCountFromRecentPublicEvents(
+  login: string,
+  token: string
+): Promise<number | null> {
   try {
     const res = await fetch(
       `https://api.github.com/users/${encodeURIComponent(login)}/events/public?per_page=100`,
@@ -20,9 +23,9 @@ async function getCommitCount(login: string, token: string): Promise<number> {
       }
     );
 
-    if (!res.ok) return 0;
+    if (!res.ok) return null;
     const events = await res.json();
-    if (!Array.isArray(events)) return 0;
+    if (!Array.isArray(events)) return null;
 
     let commits = 0;
     for (const ev of events) {
@@ -30,10 +33,81 @@ async function getCommitCount(login: string, token: string): Promise<number> {
         commits += ev.payload.commits.length;
       }
     }
+    return Number.isFinite(commits) ? commits : null;
+  } catch {
+    return null;
+  }
+}
+
+async function getCommitCountFromContributionsApi(
+  login: string,
+  token: string
+): Promise<number | null> {
+  try {
+    const to = new Date();
+    const from = new Date(to);
+    from.setFullYear(to.getFullYear() - 1);
+
+    const query = `
+      query($login: String!, $from: DateTime!, $to: DateTime!) {
+        user(login: $login) {
+          contributionsCollection(from: $from, to: $to) {
+            totalCommitContributions
+          }
+        }
+      }
+    `;
+
+    const res = await fetch("https://api.github.com/graphql", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "User-Agent": "VerifyMe",
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        query,
+        variables: {
+          login,
+          from: from.toISOString(),
+          to: to.toISOString(),
+        },
+      }),
+      cache: "no-store",
+    });
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (Array.isArray(data?.errors) && data.errors.length > 0) {
+      return null;
+    }
+
+    const commits = Number(
+      data?.data?.user?.contributionsCollection?.totalCommitContributions
+    );
+    if (!Number.isFinite(commits) || commits < 0) return null;
     return commits;
   } catch {
-    return 0;
+    return null;
   }
+}
+
+async function getCommitCount(login: string, token: string): Promise<number> {
+  const [contributionCommits, recentEventCommits] = await Promise.all([
+    getCommitCountFromContributionsApi(login, token),
+    getCommitCountFromRecentPublicEvents(login, token),
+  ]);
+
+  if (
+    typeof contributionCommits === "number" &&
+    typeof recentEventCommits === "number"
+  ) {
+    return Math.max(contributionCommits, recentEventCommits);
+  }
+  if (typeof contributionCommits === "number") return contributionCommits;
+  if (typeof recentEventCommits === "number") return recentEventCommits;
+  return 0;
 }
 
 export async function GET(req: NextRequest) {

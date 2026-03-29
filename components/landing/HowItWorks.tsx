@@ -3,23 +3,23 @@
 const STEPS = [
   {
     num: "01",
-    title: "Connect your wallet",
-    body: "Your wallet is your public identity. No email, no password, no real name.",
+    title: "Connect and sign your wallet challenge",
+    body: "VerifyMe issues a short-lived nonce. You sign a canonical wallet message so we can prove wallet ownership without exposing private keys.",
   },
   {
     num: "02",
-    title: "Link your socials",
-    body: "Sign in to GitHub or Discord (OAuth) and Farcaster (wallet-based). We read a stable account ID and public counts.",
+    title: "Verify social ownership with one-time sessions",
+    body: "GitHub and Discord use OAuth callbacks; Farcaster uses signed wallet-based sign-in. Each verification session is wallet-bound, short-lived, and one-time-use.",
   },
   {
     num: "03",
-    title: "Generate proof hashes",
-    body: "We create a 64-character proof hash from (wallet + platform + platform ID). This is the receipt that the link exists.",
+    title: "Create a signed binding proof",
+    body: "We compute a deterministic proof hash from (wallet + platform + platform user ID) and issue a signed binding proof token that can be verified independently.",
   },
   {
     num: "04",
-    title: "Share + (soon) anchor on Rialo",
-    body: "You get a public profile and a VM Card you can post on X. Next: anchor a single root hash on Rialo so DAOs can verify without trusting our server.",
+    title: "Share and verify trustlessly",
+    body: "Your verifier profile and VM Card become shareable immediately. Integrators can verify proofs via API today, then anchor identity roots on Rialo for permanent on-chain auditability.",
   },
 ];
 

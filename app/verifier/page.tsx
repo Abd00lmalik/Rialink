@@ -9,6 +9,7 @@ import { APP_URL } from "@/lib/constants";
 import { POLICY_PRESETS } from "@/lib/policy";
 import { deriveTrustLevel, type TrustLevel } from "@/lib/trust-level";
 import type { ProofRecord } from "@/lib/types";
+import { maskUsername } from "@/lib/utils";
 
 const POLICY_OPTIONS = Object.entries(POLICY_PRESETS).map(([id, preset]) => ({
   id,
@@ -153,6 +154,12 @@ function VerifierDashboard() {
       ),
     [proofs]
   );
+  const getDisplayUsername = useCallback((proof: ProofRecord) => {
+    if (proof.platform === "farcaster") {
+      return maskUsername(proof.username);
+    }
+    return proof.username;
+  }, []);
 
   const handleVerifyProof = useCallback(async (proof: ProofRecord) => {
     const key = `${proof.platform}-${proof.userId}`;
@@ -186,9 +193,14 @@ function VerifierDashboard() {
         return;
       }
 
+      const verifiedUsername =
+        proof.platform === "farcaster"
+          ? maskUsername(String(data?.username || proof.username || ""))
+          : String(data?.username || proof.username || "");
+      const boundWallet = proof.wallet || walletResult || "this wallet";
       setProofChecks((prev) => ({
         ...prev,
-        [key]: `Valid proof: ${data.username} (${data.platform}) is bound to ${proof.wallet}`,
+        [key]: `Valid proof: ${verifiedUsername} (${data.platform}) is bound to ${boundWallet}`,
       }));
     } catch {
       setProofChecks((prev) => ({
@@ -196,7 +208,7 @@ function VerifierDashboard() {
         [key]: "Proof verification request failed",
       }));
     }
-  }, []);
+  }, [walletResult]);
 
   const handleCopyUsername = useCallback(async (key: string, username: string) => {
     try {
@@ -284,7 +296,7 @@ function VerifierDashboard() {
                 </div>
                 {primaryIdentity && (
                   <p style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
-                    Primary identity: <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>{primaryIdentity.username}</span> on {PLATFORM_LABELS[primaryIdentity.platform]}
+                    Primary identity: <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>{getDisplayUsername(primaryIdentity)}</span> on {PLATFORM_LABELS[primaryIdentity.platform]}
                   </p>
                 )}
               </div>
@@ -340,20 +352,21 @@ function VerifierDashboard() {
                 {proofs.map((proof) => {
                   const key = `${proof.platform}-${proof.userId}`;
                   const platformLabel = PLATFORM_LABELS[proof.platform];
+                  const displayUsername = getDisplayUsername(proof);
                   return (
                     <div key={key} style={{ border: "1px solid var(--border-subtle)", borderRadius: "10px", background: "var(--bg-elevated)", padding: "12px" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", flexWrap: "wrap", marginBottom: "10px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
                           {proof.pfpUrl ? (
-                            <img src={proof.pfpUrl} alt={`${proof.username} avatar`} style={{ width: "34px", height: "34px", borderRadius: "50%", objectFit: "cover", border: "1px solid var(--border-default)" }} />
+                            <img src={proof.pfpUrl} alt={`${displayUsername} avatar`} style={{ width: "34px", height: "34px", borderRadius: "50%", objectFit: "cover", border: "1px solid var(--border-default)" }} />
                           ) : (
                             <div style={{ width: "34px", height: "34px", borderRadius: "50%", background: "var(--accent)", color: "var(--text-inverse)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: 700 }}>
-                              {(proof.username?.[0] || "?").toUpperCase()}
+                              {(displayUsername?.[0] || "?").toUpperCase()}
                             </div>
                           )}
                           <div>
                             <p style={{ fontSize: "15px", color: "var(--text-primary)", fontWeight: 700, marginBottom: "2px" }}>
-                              {proof.username}
+                              {displayUsername}
                             </p>
                             <p style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{platformLabel}</p>
                           </div>
@@ -395,7 +408,7 @@ function VerifierDashboard() {
                       </div>
                       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                         <button
-                          onClick={() => handleCopyUsername(key, proof.username)}
+                          onClick={() => handleCopyUsername(key, displayUsername)}
                           style={{ height: "28px", padding: "0 8px", borderRadius: "8px", border: "1px solid var(--border-default)", background: "transparent", color: "var(--text-secondary)", fontSize: "12px", cursor: "pointer" }}
                         >
                           {copiedUsernameKey === key ? "Copied" : "Copy username"}

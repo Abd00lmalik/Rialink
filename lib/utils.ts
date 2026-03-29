@@ -10,7 +10,8 @@ export function truncateAddress(
 
 export function maskUsername(username: string): string {
   if (!username || username.length <= 4) return username;
-  return username.slice(0, 2) + '****' + username.slice(-2);
+  const middleLength = Math.max(1, username.length - 4);
+  return username.slice(0, 2) + '*'.repeat(middleLength) + username.slice(-2);
 }
 
 export function generateAvatarColor(address: string): string {
