@@ -1,241 +1,187 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { Check, Copy, ExternalLink, ShieldAlert, ShieldCheck } from "lucide-react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AddressDisplay } from "@/components/ui/AddressDisplay";
-import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { APP_URL } from "@/lib/constants";
-import { POLICY_PRESETS } from "@/lib/policy";
-import { deriveTrustLevel, type TrustLevel } from "@/lib/trust-level";
-import type { ProofRecord } from "@/lib/types";
-import { maskUsername } from "@/lib/utils";
 
-const POLICY_OPTIONS = Object.entries(POLICY_PRESETS).map(([id, preset]) => ({
-  id,
-  label: preset.name,
-}));
+type TrustLevel = "high" | "medium" | "low" | "none";
+type Platform = "github" | "discord" | "farcaster";
 
-const PLATFORM_LABELS: Record<ProofRecord["platform"], string> = {
+interface VerifyProof {
+  platform: Platform;
+  maskedUsername: string;
+  proofHash: string;
+  verifiedAt: string;
+  repoCount?: number;
+  commitCount?: number;
+  followerCount?: number;
+  serverCount?: number;
+}
+
+interface VerifyResponse {
+  wallet: string;
+  valid: boolean;
+  trustLevel: TrustLevel;
+  verifiedPlatforms: Platform[];
+  totalVerified: number;
+  maxPossible: number;
+  proofs: VerifyProof[];
+  queriedAt: string;
+}
+
+const PLATFORM_LABELS: Record<Platform, string> = {
   github: "GitHub",
   discord: "Discord",
   farcaster: "Farcaster",
 };
 
-function VerifierDashboard() {
+const TRUST_LABELS: Record<TrustLevel, string> = {
+  high: "High",
+  medium: "Medium",
+  low: "Low",
+  none: "None",
+};
+
+function formatDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Unknown";
+  return date.toLocaleString();
+}
+
+function trustTone(level: TrustLevel): string {
+  if (level === "high") return "var(--success)";
+  if (level === "medium") return "var(--accent-text)";
+  if (level === "low") return "var(--text-secondary)";
+  return "var(--text-muted)";
+}
+
+function platformAccent(platform: Platform): string {
+  if (platform === "github") return "rgba(92,225,230,0.2)";
+  if (platform === "discord") return "rgba(139,92,246,0.22)";
+  return "rgba(244,114,182,0.22)";
+}
+
+export default function VerifierPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const [walletInput, setWalletInput] = useState("");
-  const [walletResult, setWalletResult] = useState<string | null>(null);
-  const [proofs, setProofs] = useState<ProofRecord[]>([]);
-  const [loading, setLoading] = useState(false);
+  const walletParam = searchParams.get("wallet")?.trim() ?? "";
+
+  const [walletInput, setWalletInput] = useState(walletParam);
+  const [identity, setIdentity] = useState<VerifyResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [policyId, setPolicyId] = useState<string>(() => POLICY_OPTIONS[0]?.id || "");
-  const [policyLoading, setPolicyLoading] = useState(false);
-  const [policyResult, setPolicyResult] = useState<{
-    eligible: boolean;
-    reasons?: string[];
-    accessToken?: string | null;
-    expiresAt?: number | null;
-  } | null>(null);
-  const [proofChecks, setProofChecks] = useState<Record<string, string>>({});
-  const [copiedUsernameKey, setCopiedUsernameKey] = useState<string | null>(null);
+  const [hasLookup, setHasLookup] = useState(false);
 
-  const { copy: copyToken, copied: tokenCopied } = useCopyToClipboard();
-  const { copy: copyWallet, copied: walletCopied } = useCopyToClipboard();
-
-  const vmCardUrl = useMemo(() => {
-    if (!walletResult) return "";
-    return `${APP_URL}/certificate/${walletResult}`;
-  }, [walletResult]);
-
-  const runLookup = useCallback(async (wallet: string) => {
+  const fetchIdentity = useCallback(async (wallet: string) => {
     const trimmed = wallet.trim();
     if (!trimmed) {
-      setError("Enter a wallet address to verify.");
-      setProofs([]);
-      setWalletResult(null);
+      setIdentity(null);
+      setHasLookup(false);
+      setError(null);
       return;
     }
 
-    setLoading(true);
+    setIsLoading(true);
     setError(null);
-    setWalletResult(trimmed);
-    setProofs([]);
-    setPolicyResult(null);
-    setProofChecks({});
-    setCopiedUsernameKey(null);
+    setHasLookup(true);
 
     try {
-      const res = await fetch(`/api/proof?wallet=${encodeURIComponent(trimmed)}`);
-      const data = await res.json();
-      setProofs(Array.isArray(data?.proofs) ? data.proofs : []);
-      if (!data?.proofs || data.proofs.length === 0) {
-        setError("No proofs found for this wallet.");
+      const response = await fetch(`/api/verify/${encodeURIComponent(trimmed)}`, {
+        cache: "no-store",
+      });
+      const data = (await response.json()) as VerifyResponse | { error?: string };
+
+      if (!response.ok || !("wallet" in data)) {
+        const message =
+          "error" in data && typeof data.error === "string"
+            ? data.error
+            : "Could not verify this wallet right now.";
+        setIdentity(null);
+        setError(message);
+        return;
       }
+
+      setIdentity(data);
     } catch {
-      setError("Could not load proofs. Please try again.");
+      setIdentity(null);
+      setError("Could not verify this wallet right now.");
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    const walletParam = searchParams.get("wallet");
-    if (walletParam) {
-      setWalletInput(walletParam);
-      runLookup(walletParam);
-    }
-  }, [searchParams, runLookup]);
-
-  const handlePolicyCheck = useCallback(async () => {
-    if (!walletResult) return;
-    setPolicyLoading(true);
-    setPolicyResult(null);
-    try {
-      const res = await fetch("/api/policy/check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ wallet: walletResult, policyId }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setPolicyResult({ eligible: false, reasons: [data?.error || "Policy check failed"] });
-      } else {
-        setPolicyResult({
-          eligible: !!data.eligible,
-          reasons: Array.isArray(data.reasons) ? data.reasons : [],
-          accessToken: data.accessToken || null,
-          expiresAt: data.expiresAt || null,
-        });
-      }
-    } catch {
-      setPolicyResult({ eligible: false, reasons: ["Policy check failed. Try again."] });
-    } finally {
-      setPolicyLoading(false);
-    }
-  }, [walletResult, policyId]);
-
-  const platformStatus = useMemo(
-    () => [
-      { id: "github", label: "GitHub", verified: proofs.some((p) => p.platform === "github") },
-      { id: "discord", label: "Discord", verified: proofs.some((p) => p.platform === "discord") },
-      { id: "farcaster", label: "Farcaster", verified: proofs.some((p) => p.platform === "farcaster") },
-    ],
-    [proofs]
-  );
-
-  const verifiedCount = platformStatus.filter((p) => p.verified).length;
-  const trustLevel: TrustLevel = useMemo(() => deriveTrustLevel(proofs), [proofs]);
-  const trustLabel =
-    trustLevel === "high"
-      ? "High Trust Wallet"
-      : trustLevel === "medium"
-      ? "Medium Trust Wallet"
-      : "Low Trust Wallet";
-  const primaryIdentity = useMemo(() => {
-    if (proofs.length === 0) return null;
-    const priority: Record<ProofRecord["platform"], number> = {
-      github: 0,
-      farcaster: 1,
-      discord: 2,
-    };
-    return [...proofs].sort((a, b) => priority[a.platform] - priority[b.platform])[0];
-  }, [proofs]);
-  const aggregateStats = useMemo(
-    () =>
-      proofs.reduce(
-        (acc, proof) => ({
-          repos: acc.repos + Number(proof.repoCount || 0),
-          commits: acc.commits + Number(proof.commitCount || 0),
-          followers: acc.followers + Number(proof.followerCount || 0),
-          servers: acc.servers + Number(proof.serverCount || 0),
-        }),
-        { repos: 0, commits: 0, followers: 0, servers: 0 }
-      ),
-    [proofs]
-  );
-  const getDisplayUsername = useCallback((proof: ProofRecord) => {
-    if (proof.platform === "farcaster") {
-      return maskUsername(proof.username);
-    }
-    return proof.username;
-  }, []);
-
-  const handleVerifyProof = useCallback(async (proof: ProofRecord) => {
-    const key = `${proof.platform}-${proof.userId}`;
-    const token = proof.bindingProof?.token || "";
-    if (!token) {
-      setProofChecks((prev) => ({ ...prev, [key]: "No binding proof token found" }));
+    setWalletInput(walletParam);
+    if (!walletParam) {
+      setIdentity(null);
+      setHasLookup(false);
+      setError(null);
+      setIsLoading(false);
       return;
     }
+    void fetchIdentity(walletParam);
+  }, [walletParam, fetchIdentity]);
 
-    setProofChecks((prev) => ({ ...prev, [key]: "Verifying..." }));
-    try {
-      const res = await fetch("/api/verify-proof", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ binding_proof: token }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data?.valid) {
-        const errorCode =
-          data?.error && typeof data.error.code === "string" ? data.error.code : "";
-        const errorMessage =
-          data?.error && typeof data.error.message === "string"
-            ? data.error.message
-            : typeof data?.error === "string"
-            ? data.error
-            : "verification failed";
-        setProofChecks((prev) => ({
-          ...prev,
-          [key]: `Invalid proof${errorCode ? ` (${errorCode})` : ""}: ${errorMessage}`,
-        }));
+  const handleSubmit = useCallback(
+    (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      const trimmed = walletInput.trim();
+      if (!trimmed) {
+        setIdentity(null);
+        setHasLookup(false);
+        setError("Enter a wallet address to verify.");
         return;
       }
 
-      const verifiedUsername =
-        proof.platform === "farcaster"
-          ? maskUsername(String(data?.username || proof.username || ""))
-          : String(data?.username || proof.username || "");
-      const boundWallet = proof.wallet || walletResult || "this wallet";
-      setProofChecks((prev) => ({
-        ...prev,
-        [key]: `Valid proof: ${verifiedUsername} (${data.platform}) is bound to ${boundWallet}`,
-      }));
-    } catch {
-      setProofChecks((prev) => ({
-        ...prev,
-        [key]: "Proof verification request failed",
-      }));
-    }
-  }, [walletResult]);
+      const currentWallet = walletParam;
+      const nextPath = `/verifier?wallet=${encodeURIComponent(trimmed)}`;
+      if (trimmed === currentWallet) {
+        void fetchIdentity(trimmed);
+      } else {
+        router.replace(nextPath);
+      }
+    },
+    [walletInput, walletParam, fetchIdentity, router]
+  );
 
-  const handleCopyUsername = useCallback(async (key: string, username: string) => {
-    try {
-      await navigator.clipboard.writeText(username);
-      setCopiedUsernameKey(key);
-      setTimeout(() => setCopiedUsernameKey((prev) => (prev === key ? null : prev)), 1500);
-    } catch {
-      setCopiedUsernameKey(null);
-    }
-  }, []);
+  const verifiedPlatforms = identity?.verifiedPlatforms ?? [];
+  const hasProofs = (identity?.proofs?.length ?? 0) > 0;
+  const trustLevel = identity?.trustLevel ?? "none";
+  const progressBars = useMemo(() => [0, 1, 2], []);
 
   return (
-    <div style={{ maxWidth: "880px", margin: "0 auto", padding: "96px 24px 80px" }}>
+    <div style={{ maxWidth: "960px", margin: "0 auto", padding: "88px 24px 60px" }}>
       <div style={{ marginBottom: "20px" }}>
-        <h1 style={{ fontSize: "28px", fontWeight: 600, letterSpacing: "-0.01em", color: "var(--text-primary)", marginBottom: "6px" }}>
-          Wallet Verifier
+        <h1
+          style={{
+            fontSize: "28px",
+            fontWeight: 600,
+            letterSpacing: "-0.01em",
+            color: "var(--text-primary)",
+            marginBottom: "6px",
+          }}
+        >
+          Public Wallet Verifier
         </h1>
         <p style={{ fontSize: "14px", color: "var(--text-secondary)" }}>
-          Enter a wallet address to check social verification status and eligibility for gated access.
+          Look up any wallet and verify linked identities without connecting your wallet.
         </p>
       </div>
 
-      <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "14px", padding: "18px", marginBottom: "20px" }}>
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          background: "var(--bg-surface)",
+          border: "1px solid var(--border-subtle)",
+          borderRadius: "14px",
+          padding: "18px",
+          marginBottom: "20px",
+        }}
+      >
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
           <input
             value={walletInput}
-            onChange={(e) => setWalletInput(e.target.value)}
+            onChange={(event) => setWalletInput(event.target.value)}
             placeholder="Wallet address"
             style={{
               flex: 1,
@@ -251,8 +197,8 @@ function VerifierDashboard() {
             }}
           />
           <button
-            onClick={() => runLookup(walletInput)}
-            disabled={loading}
+            type="submit"
+            disabled={isLoading}
             style={{
               height: "40px",
               padding: "0 16px",
@@ -266,289 +212,351 @@ function VerifierDashboard() {
               fontFamily: "inherit",
             }}
           >
-            {loading ? "Checking..." : "Check proofs"}
+            {isLoading ? "Checking..." : "Verify wallet"}
           </button>
         </div>
-        <p style={{ marginTop: "10px", fontSize: "12px", color: "var(--text-muted)" }}>
-          Tip: Always verify on the official VerifyMe domain and avoid screenshots.
-        </p>
-      </div>
+      </form>
 
-      {walletResult && (
-        <div style={{ display: "grid", gap: "14px" }}>
-          <section style={{ background: "linear-gradient(145deg, var(--bg-surface), var(--bg-elevated))", border: "1px solid var(--border-subtle)", borderRadius: "14px", padding: "18px" }}>
-            <p style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>
-              Section 1: Profile Header
-            </p>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
-              <div>
-                <p style={{ fontSize: "18px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "6px" }}>
-                  Wallet Identity Profile
-                </p>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "6px" }}>
-                  <AddressDisplay address={walletResult} />
-                  <button
-                    onClick={() => copyWallet(walletResult)}
-                    style={{ height: "28px", padding: "0 8px", borderRadius: "8px", border: "1px solid var(--border-default)", background: "transparent", color: "var(--text-secondary)", fontSize: "12px", cursor: "pointer" }}
-                  >
-                    {walletCopied ? "Copied" : "Copy wallet"}
-                  </button>
-                </div>
-                {primaryIdentity && (
-                  <p style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
-                    Primary identity: <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>{getDisplayUsername(primaryIdentity)}</span> on {PLATFORM_LABELS[primaryIdentity.platform]}
-                  </p>
-                )}
-              </div>
-              {vmCardUrl && (
-                <a
-                  href={vmCardUrl}
-                  style={{ fontSize: "13px", color: "var(--accent-text)", display: "flex", alignItems: "center", gap: "6px" }}
+      {error && (
+        <div
+          style={{
+            background: "var(--bg-surface)",
+            border: "1px solid rgba(248,113,113,0.35)",
+            borderRadius: "14px",
+            padding: "16px",
+            marginBottom: "18px",
+          }}
+        >
+          <p style={{ fontSize: "13px", color: "var(--error, #f87171)" }}>{error}</p>
+        </div>
+      )}
+
+      {!error && isLoading && (
+        <div
+          style={{
+            background: "var(--bg-surface)",
+            border: "1px solid var(--border-subtle)",
+            borderRadius: "14px",
+            padding: "18px",
+          }}
+        >
+          <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>Loading verification data...</p>
+        </div>
+      )}
+
+      {!error && !isLoading && hasLookup && identity && (
+        <>
+          {!hasProofs ? (
+            <section
+              style={{
+                background: "var(--bg-surface)",
+                border: "1px solid var(--border-subtle)",
+                borderRadius: "14px",
+                padding: "20px",
+              }}
+            >
+              <p
+                style={{
+                  fontSize: "11px",
+                  color: "var(--text-muted)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  marginBottom: "8px",
+                }}
+              >
+                Result
+              </p>
+              <h2
+                style={{
+                  fontSize: "20px",
+                  fontWeight: 600,
+                  color: "var(--text-primary)",
+                  marginBottom: "6px",
+                }}
+              >
+                Not verified
+              </h2>
+              <p style={{ fontSize: "14px", color: "var(--text-secondary)", marginBottom: "10px" }}>
+                No verified identity proofs were found for this wallet.
+              </p>
+              <AddressDisplay address={identity.wallet} />
+            </section>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "240px 1fr",
+                gap: "24px",
+                alignItems: "start",
+              }}
+            >
+              <aside
+                style={{
+                  background: "var(--bg-surface)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "14px",
+                  padding: "20px",
+                  position: "sticky",
+                  top: "72px",
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 500,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    color: "var(--text-muted)",
+                    marginBottom: "6px",
+                  }}
                 >
-                  View VM Card <ExternalLink size={12} />
-                </a>
-              )}
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "8px", marginTop: "12px" }}>
-              <div style={{ border: "1px solid var(--border-subtle)", borderRadius: "10px", padding: "10px", background: "var(--bg-elevated)" }}>
-                <p style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "4px" }}>
-                  Trust Level
+                  Wallet
                 </p>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", color: trustLevel === "high" ? "var(--success)" : trustLevel === "medium" ? "var(--accent-text)" : "var(--text-secondary)" }}>
-                  {trustLevel === "high" ? <ShieldCheck size={14} /> : <ShieldAlert size={14} />}
-                  <p style={{ margin: 0, fontSize: "13px", fontWeight: 600 }}>{trustLabel}</p>
+                <AddressDisplay address={identity.wallet} />
+
+                <div
+                  style={{
+                    marginTop: "16px",
+                    border: "1px solid var(--border-subtle)",
+                    borderRadius: "10px",
+                    background: "var(--bg-elevated)",
+                    padding: "10px",
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: "11px",
+                      color: "var(--text-muted)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    Trust level
+                  </p>
+                  <p style={{ margin: 0, color: trustTone(trustLevel), fontSize: "14px", fontWeight: 600 }}>
+                    {TRUST_LABELS[trustLevel]}
+                  </p>
                 </div>
-              </div>
-              <div style={{ border: "1px solid var(--border-subtle)", borderRadius: "10px", padding: "10px", background: "var(--bg-elevated)" }}>
-                <p style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "4px" }}>
-                  Verified Identities
-                </p>
-                <p style={{ margin: 0, fontSize: "16px", color: "var(--text-primary)", fontWeight: 700 }}>
-                  {verifiedCount} linked accounts
-                </p>
-              </div>
-            </div>
-            {error && (
-              <p style={{ fontSize: "13px", color: "var(--error)", marginTop: "10px" }}>
-                {error}
-              </p>
-            )}
-          </section>
 
-          <section style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "14px", padding: "18px" }}>
-            <p style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>
-              Section 2: Verified Identities
-            </p>
-            <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "12px" }}>
-              Each profile entry below is cryptographically bound to this wallet.
-            </p>
-            {proofs.length === 0 ? (
-              <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>
-                No linked identities found.
-              </p>
-            ) : (
-              <div style={{ display: "grid", gap: "10px" }}>
-                {proofs.map((proof) => {
-                  const key = `${proof.platform}-${proof.userId}`;
-                  const platformLabel = PLATFORM_LABELS[proof.platform];
-                  const displayUsername = getDisplayUsername(proof);
-                  return (
-                    <div key={key} style={{ border: "1px solid var(--border-subtle)", borderRadius: "10px", background: "var(--bg-elevated)", padding: "12px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", flexWrap: "wrap", marginBottom: "10px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
-                          {proof.pfpUrl ? (
-                            <img src={proof.pfpUrl} alt={`${displayUsername} avatar`} style={{ width: "34px", height: "34px", borderRadius: "50%", objectFit: "cover", border: "1px solid var(--border-default)" }} />
-                          ) : (
-                            <div style={{ width: "34px", height: "34px", borderRadius: "50%", background: "var(--accent)", color: "var(--text-inverse)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: 700 }}>
-                              {(displayUsername?.[0] || "?").toUpperCase()}
-                            </div>
-                          )}
+                <div style={{ marginTop: "16px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: "12px",
+                        fontWeight: 500,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                        color: "var(--text-muted)",
+                      }}
+                    >
+                      Platforms
+                    </span>
+                    <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
+                      {identity.totalVerified} / {identity.maxPossible}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: "3px" }}>
+                    {progressBars.map((index) => (
+                      <div
+                        key={index}
+                        style={{
+                          flex: 1,
+                          height: "4px",
+                          borderRadius: "2px",
+                          background:
+                            index < identity.totalVerified
+                              ? "var(--success)"
+                              : "var(--border-default)",
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "10px" }}>
+                    {verifiedPlatforms.map((platform) => (
+                      <span
+                        key={platform}
+                        style={{
+                          fontSize: "12px",
+                          color: "var(--text-primary)",
+                          border: "1px solid var(--border-subtle)",
+                          borderRadius: "999px",
+                          padding: "4px 8px",
+                          background: "var(--bg-elevated)",
+                        }}
+                      >
+                        {PLATFORM_LABELS[platform]}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </aside>
+
+              <section>
+                <div style={{ marginBottom: "16px" }}>
+                  <h2
+                    style={{
+                      fontSize: "22px",
+                      fontWeight: 600,
+                      letterSpacing: "-0.01em",
+                      color: "var(--text-primary)",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    Verified Identities
+                  </h2>
+                  <p style={{ fontSize: "14px", color: "var(--text-secondary)" }}>
+                    Proof hashes are public receipts that each identity is bound to this wallet.
+                  </p>
+                </div>
+
+                <div style={{ display: "grid", gap: "12px" }}>
+                  {identity.proofs.map((proof, index) => (
+                    <article
+                      key={`${proof.platform}-${proof.proofHash}-${index}`}
+                      style={{
+                        background: "var(--bg-surface)",
+                        border: "1px solid var(--border-subtle)",
+                        borderRadius: "14px",
+                        padding: "14px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: "10px",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <div
+                            style={{
+                              width: "30px",
+                              height: "30px",
+                              borderRadius: "50%",
+                              background: platformAccent(proof.platform),
+                              border: "1px solid var(--border-subtle)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              color: "var(--text-primary)",
+                              fontSize: "12px",
+                              fontWeight: 700,
+                            }}
+                          >
+                            {PLATFORM_LABELS[proof.platform][0]}
+                          </div>
                           <div>
-                            <p style={{ fontSize: "15px", color: "var(--text-primary)", fontWeight: 700, marginBottom: "2px" }}>
-                              {displayUsername}
+                            <p style={{ fontSize: "15px", color: "var(--text-primary)", fontWeight: 700 }}>
+                              {proof.maskedUsername}
                             </p>
-                            <p style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{platformLabel}</p>
+                            <p style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
+                              {PLATFORM_LABELS[proof.platform]}
+                            </p>
                           </div>
                         </div>
-                        <p style={{ fontSize: "12px", color: "var(--success)", fontWeight: 600 }}>Verified</p>
+                        <span
+                          style={{
+                            fontSize: "12px",
+                            color: "var(--success)",
+                            border: "1px solid rgba(16,185,129,0.35)",
+                            borderRadius: "999px",
+                            padding: "4px 10px",
+                          }}
+                        >
+                          Verified
+                        </span>
                       </div>
-                      <p style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "4px" }}>
-                        Verified via {platformLabel}
+
+                      <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "10px" }}>
+                        Verified on {formatDate(proof.verifiedAt)}
                       </p>
-                      <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "8px" }}>
-                        Verified on {new Date(proof.verifiedAt).toLocaleString()}
+                      <p style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "6px" }}>
+                        Proof hash
                       </p>
-                      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "8px" }}>
+                      <p
+                        style={{
+                          fontFamily: "monospace",
+                          fontSize: "12px",
+                          color: "var(--accent-text)",
+                          wordBreak: "break-all",
+                          marginTop: "2px",
+                        }}
+                      >
+                        {proof.proofHash}
+                      </p>
+
+                      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "10px" }}>
                         {proof.repoCount !== undefined && (
-                          <span style={{ fontSize: "12px", color: "var(--text-muted)", border: "1px solid var(--border-subtle)", borderRadius: "999px", padding: "4px 8px" }}>
+                          <span
+                            style={{
+                              fontSize: "12px",
+                              color: "var(--text-muted)",
+                              border: "1px solid var(--border-subtle)",
+                              borderRadius: "999px",
+                              padding: "4px 8px",
+                            }}
+                          >
                             Repos: {proof.repoCount}
                           </span>
                         )}
                         {proof.commitCount !== undefined && (
-                          <span style={{ fontSize: "12px", color: "var(--text-muted)", border: "1px solid var(--border-subtle)", borderRadius: "999px", padding: "4px 8px" }}>
+                          <span
+                            style={{
+                              fontSize: "12px",
+                              color: "var(--text-muted)",
+                              border: "1px solid var(--border-subtle)",
+                              borderRadius: "999px",
+                              padding: "4px 8px",
+                            }}
+                          >
                             Commits: {proof.commitCount}
                           </span>
                         )}
                         {proof.followerCount !== undefined && (
-                          <span style={{ fontSize: "12px", color: "var(--text-muted)", border: "1px solid var(--border-subtle)", borderRadius: "999px", padding: "4px 8px" }}>
+                          <span
+                            style={{
+                              fontSize: "12px",
+                              color: "var(--text-muted)",
+                              border: "1px solid var(--border-subtle)",
+                              borderRadius: "999px",
+                              padding: "4px 8px",
+                            }}
+                          >
                             Followers: {proof.followerCount}
                           </span>
                         )}
                         {proof.serverCount !== undefined && (
-                          <span style={{ fontSize: "12px", color: "var(--text-muted)", border: "1px solid var(--border-subtle)", borderRadius: "999px", padding: "4px 8px" }}>
+                          <span
+                            style={{
+                              fontSize: "12px",
+                              color: "var(--text-muted)",
+                              border: "1px solid var(--border-subtle)",
+                              borderRadius: "999px",
+                              padding: "4px 8px",
+                            }}
+                          >
                             Servers: {proof.serverCount}
                           </span>
                         )}
-                        {proof.accountCreatedAt && (
-                          <span style={{ fontSize: "12px", color: "var(--text-muted)", border: "1px solid var(--border-subtle)", borderRadius: "999px", padding: "4px 8px" }}>
-                            Since {new Date(proof.accountCreatedAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
-                          </span>
-                        )}
                       </div>
-                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                        <button
-                          onClick={() => handleCopyUsername(key, displayUsername)}
-                          style={{ height: "28px", padding: "0 8px", borderRadius: "8px", border: "1px solid var(--border-default)", background: "transparent", color: "var(--text-secondary)", fontSize: "12px", cursor: "pointer" }}
-                        >
-                          {copiedUsernameKey === key ? "Copied" : "Copy username"}
-                        </button>
-                        <button
-                          onClick={() => handleVerifyProof(proof)}
-                          style={{ height: "28px", padding: "0 8px", borderRadius: "8px", border: "1px solid var(--border-default)", background: "transparent", color: "var(--text-secondary)", fontSize: "12px", cursor: "pointer" }}
-                        >
-                          Verify proof
-                        </button>
-                      </div>
-                      {proofChecks[key] && (
-                        <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "6px" }}>
-                          {proofChecks[key]}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          <section style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "14px", padding: "18px" }}>
-            <p style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px" }}>
-              Section 3: Activity / Stats
-            </p>
-            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-              <span style={{ fontSize: "12px", color: "var(--text-muted)", border: "1px solid var(--border-subtle)", borderRadius: "999px", padding: "4px 8px" }}>
-                Total repos: {aggregateStats.repos}
-              </span>
-              <span style={{ fontSize: "12px", color: "var(--text-muted)", border: "1px solid var(--border-subtle)", borderRadius: "999px", padding: "4px 8px" }}>
-                Total commits: {aggregateStats.commits}
-              </span>
-              <span style={{ fontSize: "12px", color: "var(--text-muted)", border: "1px solid var(--border-subtle)", borderRadius: "999px", padding: "4px 8px" }}>
-                Total followers: {aggregateStats.followers}
-              </span>
-              <span style={{ fontSize: "12px", color: "var(--text-muted)", border: "1px solid var(--border-subtle)", borderRadius: "999px", padding: "4px 8px" }}>
-                Total servers: {aggregateStats.servers}
-              </span>
+                    </article>
+                  ))}
+                </div>
+              </section>
             </div>
-          </section>
-
-          <section style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "14px", padding: "18px" }}>
-            <p style={{ fontSize: "12px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "10px" }}>
-              Access Check
-            </p>
-            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "12px" }}>
-              <select
-                value={policyId}
-                onChange={(e) => setPolicyId(e.target.value)}
-                style={{
-                  flex: 1,
-                  minWidth: "220px",
-                  height: "38px",
-                  borderRadius: "10px",
-                  border: "1px solid var(--border-default)",
-                  background: "var(--bg-elevated)",
-                  color: "var(--text-primary)",
-                  padding: "0 10px",
-                  fontSize: "13px",
-                }}
-              >
-                {POLICY_OPTIONS.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={handlePolicyCheck}
-                disabled={policyLoading}
-                style={{
-                  height: "38px",
-                  padding: "0 14px",
-                  borderRadius: "10px",
-                  border: "none",
-                  background: "var(--accent)",
-                  color: "var(--text-inverse)",
-                  fontSize: "13px",
-                  fontWeight: 500,
-                  cursor: "pointer",
-                }}
-              >
-                {policyLoading ? "Checking..." : "Check eligibility"}
-              </button>
-            </div>
-
-            {policyResult && (
-              <div style={{ border: "1px solid var(--border-subtle)", borderRadius: "12px", padding: "12px", background: "var(--bg-elevated)" }}>
-                <p style={{ fontSize: "13px", color: policyResult.eligible ? "var(--success)" : "var(--error)", marginBottom: "8px" }}>
-                  {policyResult.eligible ? "Eligible" : "Not eligible"}
-                </p>
-                {policyResult.reasons && policyResult.reasons.length > 0 && (
-                  <div style={{ display: "grid", gap: "4px", marginBottom: "8px" }}>
-                    {policyResult.reasons.map((reason, idx) => (
-                      <p key={`${reason}-${idx}`} style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                        {reason}
-                      </p>
-                    ))}
-                  </div>
-                )}
-                {policyResult.accessToken && (
-                  <>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "8px 10px" }}>
-                      <div>
-                        <p style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "2px" }}>
-                          Access Pass
-                        </p>
-                        <p style={{ fontFamily: "monospace", fontSize: "12px", color: "var(--text-muted)", wordBreak: "break-all" }}>
-                          {policyResult.accessToken}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => copyToken(policyResult.accessToken || "")}
-                        style={{ background: "none", border: "none", cursor: "pointer", color: tokenCopied ? "var(--success)" : "var(--text-muted)", padding: "4px", display: "flex", alignItems: "center" }}
-                      >
-                        {tokenCopied ? <Check size={14} /> : <Copy size={14} />}
-                      </button>
-                    </div>
-                    {policyResult.expiresAt && (
-                      <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "6px" }}>
-                        Expires {new Date(policyResult.expiresAt).toLocaleString()}
-                      </p>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-          </section>
-        </div>
+          )}
+        </>
       )}
     </div>
-  );
-}
-
-export default function VerifierPage() {
-  return (
-    <Suspense fallback={<div style={{ minHeight: "100vh" }} />}>
-      <VerifierDashboard />
-    </Suspense>
   );
 }
