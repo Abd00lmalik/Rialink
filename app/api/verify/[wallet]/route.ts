@@ -9,9 +9,11 @@ type Platform = "github" | "discord" | "farcaster";
 interface StoredProofRow {
   platform: Platform;
   username: string;
+  fullName?: string;
   proofHash: string;
   verifiedAt: string;
   verified: boolean;
+  pfpUrl?: string;
   repoCount?: number;
   commitCount?: number;
   followerCount?: number;
@@ -52,13 +54,6 @@ function toNumberOrUndefined(value: unknown): number | undefined {
   return num;
 }
 
-function maskUsername(username: string): string {
-  const value = String(username || "").trim();
-  if (!value || value.length <= 4) return value;
-  const middleLength = Math.max(1, value.length - 4);
-  return `${value.slice(0, 2)}${"*".repeat(middleLength)}${value.slice(-2)}`;
-}
-
 function formatProofHash(value: string): string {
   const raw = String(value || "").trim();
   if (!raw) return "";
@@ -81,16 +76,23 @@ function normalizeProofRow(row: unknown): StoredProofRow | null {
   const platformValue = String(obj.platform || "").trim().toLowerCase();
   if (!isPlatform(platformValue)) return null;
 
-  const username = String(obj.username || obj.maskedUsername || "").trim();
+  const usernameRaw = String(obj.username || obj.maskedUsername || "").trim();
+  const username =
+    usernameRaw ||
+    String(obj.userId || obj.user_id || `${platformValue}:unknown`).trim();
+  const fullName = String(obj.fullName || obj.full_name || "").trim();
   const proofHash = String(obj.proofHash || obj.proof_hash || "").trim();
   const verifiedAt = String(obj.verifiedAt || obj.verified_at || "").trim();
+  const pfpUrl = String(obj.pfpUrl || obj.pfp_url || "").trim();
 
   return {
     platform: platformValue,
     username,
+    ...(fullName ? { fullName } : {}),
     proofHash,
     verifiedAt,
     verified: obj.verified !== false,
+    ...(pfpUrl ? { pfpUrl } : {}),
     ...(toNumberOrUndefined(obj.repoCount) !== undefined
       ? { repoCount: toNumberOrUndefined(obj.repoCount) }
       : {}),
@@ -162,7 +164,9 @@ export async function GET(
     maxPossible: MAX_POSSIBLE,
     proofs: proofs.map((proof) => ({
       platform: proof.platform,
-      maskedUsername: maskUsername(proof.username),
+      username: proof.username,
+      ...(proof.fullName ? { fullName: proof.fullName } : {}),
+      ...(proof.pfpUrl ? { pfpUrl: proof.pfpUrl } : {}),
       proofHash: formatProofHash(proof.proofHash),
       verifiedAt: proof.verifiedAt,
       ...(proof.repoCount !== undefined ? { repoCount: proof.repoCount } : {}),

@@ -73,6 +73,7 @@ function normalizeProofRecord(value: unknown, walletFromKey?: string): ProofReco
 
   const verifiedAt = String(row.verifiedAt || new Date().toISOString());
   const username = String(row.username || row.maskedUsername || "").trim();
+  const fullName = String(row.fullName || row.full_name || "").trim();
   const userId = String(row.userId || row.usernameHash || "").trim();
   const resolvedUserId = userId || `${platform}:legacy:${createHash("sha256").update(username || wallet).digest("hex").slice(0, 16)}`;
   const proofHash =
@@ -93,6 +94,7 @@ function normalizeProofRecord(value: unknown, walletFromKey?: string): ProofReco
     platform,
     userId: resolvedUserId,
     username: username || `unknown-${resolvedUserId.slice(0, 6)}`,
+    ...(fullName ? { fullName } : {}),
     verified: row.verified === false ? false : true,
     verifiedAt,
     proofMethod: String(row.proofMethod || bindingProof.method || "legacy-bridge"),

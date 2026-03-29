@@ -24,6 +24,7 @@ export interface ProofRecord {
   platform: Platform;
   userId: string;
   username: string;
+  fullName?: string;
   verified: boolean;
   verifiedAt: string;
   proofMethod: string;

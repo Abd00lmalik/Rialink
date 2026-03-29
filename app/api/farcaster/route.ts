@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
     let followerCount = 0;
     let username = usernameFromClient;
     let resolvedPfp = pfpFromClient;
+    let fullName = "";
 
     // Pull public profile metadata from FID so displayed identity is server-resolved.
     try {
@@ -75,6 +76,14 @@ export async function POST(req: NextRequest) {
         followerCount = Number(user?.followerCount || 0);
         username = String(user?.username || username || `fid:${fid}`);
         resolvedPfp = String(user?.pfp?.url || resolvedPfp || "");
+        fullName = String(
+          user?.displayName ||
+            user?.display_name ||
+            user?.name ||
+            fullName ||
+            username ||
+            `fid:${fid}`
+        ).trim();
       }
     } catch {
       // keep fallback values if profile lookup fails
@@ -83,12 +92,16 @@ export async function POST(req: NextRequest) {
     if (!username) {
       username = `fid:${fid}`;
     }
+    if (!fullName) {
+      fullName = username;
+    }
 
     const verifiedSession = await issueVerifiedSocialSession({
       wallet,
       platform: "farcaster",
       userId: String(fid),
       username,
+      fullName,
       proofMethod: "farcaster-signin+wallet-signature",
       providerSessionId: `farcaster:${fid}:${nonce}`,
       pfpUrl: resolvedPfp,

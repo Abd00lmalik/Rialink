@@ -162,6 +162,7 @@ export async function GET(req: NextRequest) {
     const username = String(user?.login || "").trim();
     const userId = String(user?.id || "").trim();
     if (!username || !userId) throw new Error("GitHub user lookup failed");
+    const fullName = String(user?.name || username).trim() || username;
 
     const publicRepos = Number(user?.public_repos || 0);
     const avatarUrl = String(
@@ -176,6 +177,7 @@ export async function GET(req: NextRequest) {
       platform: "github",
       userId,
       username,
+      fullName,
       proofMethod: "oauth+wallet-signature",
       providerSessionId: oauthSession.id,
       pfpUrl: avatarUrl,

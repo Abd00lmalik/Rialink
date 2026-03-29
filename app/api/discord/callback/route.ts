@@ -61,6 +61,9 @@ export async function GET(req: NextRequest) {
     const username = String(user?.username || "").trim();
     const userId = String(user?.id || "").trim();
     if (!username || !userId) throw new Error("Discord user lookup failed");
+    const fullName =
+      String(user?.global_name || user?.display_name || username).trim() ||
+      username;
 
     const avatar = user?.avatar
       ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`
@@ -83,6 +86,7 @@ export async function GET(req: NextRequest) {
       platform: "discord",
       userId,
       username,
+      fullName,
       proofMethod: "oauth+wallet-signature",
       providerSessionId: oauthSession.id,
       pfpUrl: avatar,

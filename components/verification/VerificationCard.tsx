@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { Modal } from "@/components/ui/Modal";
-import { formatDate, maskUsername } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { EXPLORER_URL } from "@/lib/constants";
 import type { Platform, VerificationState } from "@/lib/types";
 
@@ -66,10 +66,7 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
   const Icon = PLATFORM_ICONS[platform];
   const color = PLATFORM_COLORS[platform];
   const platformLabel = platform.charAt(0).toUpperCase() + platform.slice(1);
-  const displayUsername =
-    proof && platform === "farcaster"
-      ? maskUsername(proof.username)
-      : proof?.username || "";
+  const displayUsername = proof?.fullName || proof?.username || "";
   const [showRevokeModal, setShowRevokeModal] = useState(false);
   const [revoking, setRevoking] = useState(false);
 
@@ -160,6 +157,11 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
                   {displayUsername}
                 </p>
                 <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                  {proof.fullName && proof.username && proof.fullName !== proof.username && (
+                    <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                      @{proof.username}
+                    </span>
+                  )}
                   <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
                     Verified via {platformLabel}
                   </span>

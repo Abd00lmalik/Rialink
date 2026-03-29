@@ -34,6 +34,7 @@ export interface VerifiedSocialSession {
   platform: Platform;
   userId: string;
   username: string;
+  fullName?: string;
   proofMethod: string;
   providerSessionId: string;
   issuedAt: string;
@@ -165,6 +166,7 @@ export async function issueVerifiedSocialSession(args: {
   platform: Platform;
   userId: string;
   username: string;
+  fullName?: string;
   proofMethod: string;
   providerSessionId: string;
   pfpUrl?: string;
@@ -177,6 +179,7 @@ export async function issueVerifiedSocialSession(args: {
   const token = randomToken();
   const issuedAt = new Date().toISOString();
   const expiresAt = new Date(Date.now() + VERIFIED_SOCIAL_TTL_SECONDS * 1000).toISOString();
+  const fullName = String(args.fullName || "").trim();
 
   const payload: VerifiedSocialSession = {
     id: token,
@@ -184,6 +187,7 @@ export async function issueVerifiedSocialSession(args: {
     platform: args.platform,
     userId: String(args.userId).trim(),
     username: String(args.username).trim(),
+    ...(fullName ? { fullName } : {}),
     proofMethod: String(args.proofMethod),
     providerSessionId: String(args.providerSessionId),
     issuedAt,

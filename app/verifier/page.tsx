@@ -9,7 +9,9 @@ type Platform = "github" | "discord" | "farcaster";
 
 interface VerifyProof {
   platform: Platform;
-  maskedUsername: string;
+  username: string;
+  fullName?: string;
+  pfpUrl?: string;
   proofHash: string;
   verifiedAt: string;
   repoCount?: number;
@@ -438,29 +440,46 @@ function VerifierContent() {
                         }}
                       >
                         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          <div
-                            style={{
-                              width: "30px",
-                              height: "30px",
-                              borderRadius: "50%",
-                              background: platformAccent(proof.platform),
-                              border: "1px solid var(--border-subtle)",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              color: "var(--text-primary)",
-                              fontSize: "12px",
-                              fontWeight: 700,
-                            }}
-                          >
-                            {PLATFORM_LABELS[proof.platform][0]}
-                          </div>
+                          {proof.pfpUrl ? (
+                            <img
+                              src={proof.pfpUrl}
+                              alt={`${proof.username} avatar`}
+                              style={{
+                                width: "30px",
+                                height: "30px",
+                                borderRadius: "50%",
+                                objectFit: "cover",
+                                border: "1px solid var(--border-subtle)",
+                              }}
+                            />
+                          ) : (
+                            <div
+                              style={{
+                                width: "30px",
+                                height: "30px",
+                                borderRadius: "50%",
+                                background: platformAccent(proof.platform),
+                                border: "1px solid var(--border-subtle)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                color: "var(--text-primary)",
+                                fontSize: "12px",
+                                fontWeight: 700,
+                              }}
+                            >
+                              {PLATFORM_LABELS[proof.platform][0]}
+                            </div>
+                          )}
                           <div>
                             <p style={{ fontSize: "15px", color: "var(--text-primary)", fontWeight: 700 }}>
-                              {proof.maskedUsername}
+                              {proof.fullName || proof.username}
                             </p>
                             <p style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
                               {PLATFORM_LABELS[proof.platform]}
+                              {proof.fullName && proof.username
+                                ? ` | @${proof.username}`
+                                : ""}
                             </p>
                           </div>
                         </div>
