@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { href: '/', label: 'Home' },
   { href: '/#how-it-works', label: 'How it works' },
   { href: '/verifier', label: 'Verifier' },
+  { href: '/developers', label: 'Developers' },
   { href: '/#faq', label: 'FAQ' },
   { href: 'https://rialo.io', label: 'Docs' },
 ];

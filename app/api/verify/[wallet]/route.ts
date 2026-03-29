@@ -1,64 +1,179 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PublicKey } from "@solana/web3.js";
-import { getProofs } from "@/lib/server/proof-storage";
-import { deriveTrustLevel } from "@/lib/trust-level";
+import { Redis } from "@upstash/redis";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-function errorResponse(status: number, code: string, message: string) {
-  return NextResponse.json(
-    {
-      error: { code, message },
-    },
-    { status }
-  );
+type Platform = "github" | "discord" | "farcaster";
+
+interface StoredProofRow {
+  platform: Platform;
+  username: string;
+  proofHash: string;
+  verifiedAt: string;
+  verified: boolean;
+  repoCount?: number;
+  commitCount?: number;
+  followerCount?: number;
+  serverCount?: number;
 }
 
-function isValidWallet(wallet: string): boolean {
+const MAX_POSSIBLE = 3;
+const PLATFORM_ORDER: Platform[] = ["github", "discord", "farcaster"];
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+} as const;
+
+function withCors(response: NextResponse): NextResponse {
+  Object.entries(CORS_HEADERS).forEach(([key, value]) => {
+    response.headers.set(key, value);
+  });
+  return response;
+}
+
+function isPlatform(value: string): value is Platform {
+  return PLATFORM_ORDER.includes(value as Platform);
+}
+
+function getRedis() {
   try {
-    new PublicKey(wallet);
-    return true;
+    return Redis.fromEnv();
   } catch {
-    return false;
+    return null;
   }
+}
+
+function toNumberOrUndefined(value: unknown): number | undefined {
+  if (value === undefined || value === null) return undefined;
+  const num = Number(value);
+  if (!Number.isFinite(num)) return undefined;
+  return num;
+}
+
+function maskUsername(username: string): string {
+  const value = String(username || "").trim();
+  if (!value || value.length <= 4) return value;
+  const middleLength = Math.max(1, value.length - 4);
+  return `${value.slice(0, 2)}${"*".repeat(middleLength)}${value.slice(-2)}`;
+}
+
+function formatProofHash(value: string): string {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const clean = raw.replace(/^0x/i, "");
+  if (clean.length <= 10) return `0x${clean}`;
+  return `0x${clean.slice(0, 4)}...${clean.slice(-4)}`;
+}
+
+function deriveTrustLevel(totalVerified: number): "high" | "medium" | "low" | "none" {
+  if (totalVerified >= 3) return "high";
+  if (totalVerified >= 2) return "medium";
+  if (totalVerified >= 1) return "low";
+  return "none";
+}
+
+function normalizeProofRow(row: unknown): StoredProofRow | null {
+  if (!row || typeof row !== "object") return null;
+  const obj = row as Record<string, unknown>;
+
+  const platformValue = String(obj.platform || "").trim().toLowerCase();
+  if (!isPlatform(platformValue)) return null;
+
+  const username = String(obj.username || obj.maskedUsername || "").trim();
+  const proofHash = String(obj.proofHash || obj.proof_hash || "").trim();
+  const verifiedAt = String(obj.verifiedAt || obj.verified_at || "").trim();
+
+  return {
+    platform: platformValue,
+    username,
+    proofHash,
+    verifiedAt,
+    verified: obj.verified !== false,
+    ...(toNumberOrUndefined(obj.repoCount) !== undefined
+      ? { repoCount: toNumberOrUndefined(obj.repoCount) }
+      : {}),
+    ...(toNumberOrUndefined(obj.commitCount) !== undefined
+      ? { commitCount: toNumberOrUndefined(obj.commitCount) }
+      : {}),
+    ...(toNumberOrUndefined(obj.followerCount) !== undefined
+      ? { followerCount: toNumberOrUndefined(obj.followerCount) }
+      : {}),
+    ...(toNumberOrUndefined(obj.serverCount) !== undefined
+      ? { serverCount: toNumberOrUndefined(obj.serverCount) }
+      : {}),
+  };
+}
+
+async function readProofs(wallet: string): Promise<StoredProofRow[]> {
+  const redis = getRedis();
+  if (!redis) return [];
+
+  try {
+    const key = `proofs:${wallet}`;
+    const rows = (await redis.lrange<unknown>(key, 0, -1)) || [];
+    return rows
+      .map((row) => normalizeProofRow(row))
+      .filter((row): row is StoredProofRow => !!row);
+  } catch {
+    return [];
+  }
+}
+
+export async function OPTIONS() {
+  return withCors(new NextResponse(null, { status: 204 }));
 }
 
 export async function GET(
   _req: NextRequest,
   context: { params: { wallet: string } }
 ) {
-  try {
-    const wallet = String(context.params.wallet || "").trim();
-    if (!wallet) {
-      return errorResponse(400, "missing_wallet", "wallet is required");
-    }
-    if (!isValidWallet(wallet)) {
-      return errorResponse(400, "invalid_wallet", "wallet must be a valid Solana address");
-    }
-
-    const proofs = (await getProofs(wallet))
-      .filter((proof) => proof.verified !== false)
-      .sort((a, b) => {
-        if (a.platform === b.platform) {
-          return a.userId.localeCompare(b.userId);
-        }
-        return a.platform.localeCompare(b.platform);
-      });
-    const identities = proofs.map((proof) => ({
-      platform: proof.platform,
-      username: proof.username,
-      user_id: proof.userId,
-      verified: true,
-      verified_at: proof.verifiedAt,
-    }));
-
-    // Integrator response intentionally excludes internals like hashes and binding metadata.
-    return NextResponse.json({
-      wallet,
-      identities,
-      trust_level: deriveTrustLevel(proofs),
-    });
-  } catch {
-    return errorResponse(500, "verify_lookup_failed", "Verification lookup failed");
+  const wallet = String(context.params.wallet || "").trim();
+  if (!wallet) {
+    return withCors(
+      NextResponse.json(
+        { error: "wallet is required", queriedAt: new Date().toISOString() },
+        { status: 400 }
+      )
+    );
   }
+
+  const allProofs = await readProofs(wallet);
+  const proofs = allProofs
+    .filter((proof) => proof.verified)
+    .sort(
+      (a, b) =>
+        PLATFORM_ORDER.indexOf(a.platform) - PLATFORM_ORDER.indexOf(b.platform)
+    );
+
+  const verifiedPlatforms = PLATFORM_ORDER.filter((platform) =>
+    proofs.some((proof) => proof.platform === platform)
+  );
+  const totalVerified = verifiedPlatforms.length;
+  const trustLevel = deriveTrustLevel(totalVerified);
+
+  const response = NextResponse.json({
+    wallet,
+    valid: totalVerified > 0,
+    trustLevel,
+    verifiedPlatforms,
+    totalVerified,
+    maxPossible: MAX_POSSIBLE,
+    proofs: proofs.map((proof) => ({
+      platform: proof.platform,
+      maskedUsername: maskUsername(proof.username),
+      proofHash: formatProofHash(proof.proofHash),
+      verifiedAt: proof.verifiedAt,
+      ...(proof.repoCount !== undefined ? { repoCount: proof.repoCount } : {}),
+      ...(proof.commitCount !== undefined ? { commitCount: proof.commitCount } : {}),
+      ...(proof.followerCount !== undefined
+        ? { followerCount: proof.followerCount }
+        : {}),
+      ...(proof.serverCount !== undefined ? { serverCount: proof.serverCount } : {}),
+    })),
+    queriedAt: new Date().toISOString(),
+  });
+
+  return withCors(response);
 }
