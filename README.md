@@ -46,12 +46,12 @@ Rialink solves this by creating portable wallet-linked trust signals that can be
 
 - `/verify`
   - authenticated dashboard for linking identities
-- `/verifier?wallet=<wallet>`
+- `/verifier?cardId=<card_id>`
   - public wallet lookup (no wallet connection required)
 - `/profile/[wallet]`
   - public/read-only profile view
 - `/certificate/[wallet]`
-  - VM Card (shareable identity score card)
+  - RialCard (shareable identity score card)
 - `/badge/[wallet]`
   - embeddable badge route
 - `/developers`

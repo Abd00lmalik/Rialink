@@ -7,6 +7,7 @@ import { ChevronDown, LogOut, Copy, ExternalLink } from 'lucide-react';
 import { useCopyToClipboard } from '@/hooks/useCopyToClipboard';
 import { clearStoredWalletProof } from '@/hooks/useWalletProof';
 import { truncateAddress, generateAvatarColor } from '@/lib/utils';
+import { cardIdFromWallet } from '@/lib/card-id';
 
 export function ConnectButton() {
   const { publicKey, disconnect, connected } = useWallet();
@@ -57,6 +58,7 @@ export function ConnectButton() {
 
   // CONNECTED STATE
   const address = publicKey.toBase58();
+  const verifierCardId = cardIdFromWallet(address);
   const avatarColor = generateAvatarColor(address);
   const initial = address[0].toUpperCase();
 
@@ -126,7 +128,7 @@ export function ConnectButton() {
         >
           {/* FIXED LINK */}
           <a
-            href={`/verifier?wallet=${encodeURIComponent(address)}`}
+            href={`/verifier?cardId=${encodeURIComponent(verifierCardId)}`}
             onClick={() => setDropdownOpen(false)}
             style={{
               display: 'flex',

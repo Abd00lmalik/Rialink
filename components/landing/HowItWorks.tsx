@@ -19,7 +19,7 @@ const STEPS = [
   {
     num: "04",
     title: "Share and verify trustlessly",
-    body: "Your verifier profile and VM Card become shareable immediately. Integrators can verify proofs via API today, then anchor identity roots on Rialo for permanent on-chain auditability.",
+    body: "Your verifier profile and RialCard become shareable immediately. Integrators can verify proofs via API today, then anchor identity roots on Rialo for permanent on-chain auditability.",
   },
 ];
 

@@ -100,7 +100,7 @@ export default function CertificatePage({ params }: { params: { wallet: string }
   }, [topProof, wallet]);
 
   const shareUrl = typeof window !== "undefined" ? window.location.href : `${APP_URL}/certificate/${wallet}`;
-  const xText = encodeURIComponent(`My Rialink VM Card score is ${score.total}/100 on Rialo Devnet.`);
+  const xText = encodeURIComponent(`My Rialink RialCard score is ${score.total}/100 on Rialo Devnet.`);
   const xUrl = `https://twitter.com/intent/tweet?text=${xText}&url=${encodeURIComponent(shareUrl)}`;
 
   function copyLink() {
@@ -120,7 +120,7 @@ export default function CertificatePage({ params }: { params: { wallet: string }
       }}
     >
       <div style={{ maxWidth: 430, margin: "0 auto" }}>
-        <h1 style={{ margin: 0, fontSize: 28, letterSpacing: "-0.02em" }}>VM Card</h1>
+        <h1 style={{ margin: 0, fontSize: 28, letterSpacing: "-0.02em" }}>RialCard</h1>
         <p style={{ marginTop: 7, color: "rgba(230,237,255,0.78)", fontSize: 13 }}>
           Identity card for {shortWallet(wallet)}
         </p>
@@ -259,7 +259,7 @@ export default function CertificatePage({ params }: { params: { wallet: string }
               fontSize: 13,
             }}
           >
-            Share VM Card on X
+            Share RialCard on X
           </a>
 
           <button
@@ -275,7 +275,7 @@ export default function CertificatePage({ params }: { params: { wallet: string }
               fontSize: 12,
             }}
           >
-            {copied ? "Copied" : "Copy VM Card link"}
+            {copied ? "Copied" : "Copy RialCard link"}
           </button>
         </div>
       </div>

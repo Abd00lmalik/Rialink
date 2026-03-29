@@ -87,7 +87,7 @@ export default async function Image({ params }: { params: { wallet: string } }) 
             <div style={{ display: "flex", flexDirection: "column" }}>
               <div style={{ fontSize: "18px", color: "#0f766e" }}>RIALINK | RIALO</div>
               <div style={{ fontSize: "64px", fontWeight: 800, lineHeight: 1 }}>{s}/100</div>
-              <div style={{ fontSize: "24px" }}>VM Card Score</div>
+              <div style={{ fontSize: "24px" }}>RialCard Score</div>
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
               <div style={{ fontSize: "18px", color: "#475569" }}>Wallet</div>

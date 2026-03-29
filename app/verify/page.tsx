@@ -16,6 +16,7 @@ import { Divider } from "@/components/ui/Divider";
 import { AddressDisplay } from "@/components/ui/AddressDisplay";
 import { generateAvatarColor } from "@/lib/utils";
 import { APP_URL } from "@/lib/constants";
+import { cardIdFromWallet } from "@/lib/card-id";
 import type { Platform } from "@/lib/types";
 
 function VerifyDashboard() {
@@ -288,15 +289,22 @@ function VerifyDashboard() {
 
   const avatarColor = generateAvatarColor(wallet);
   const verifiedCount = verifications.filter((v) => v.status === "verified").length;
-  const verifierUrl = `${APP_URL}/verifier?wallet=${encodeURIComponent(wallet)}`;
+  const verifierCardId = cardIdFromWallet(wallet);
+  const verifierUrl = `${APP_URL}/verifier?cardId=${encodeURIComponent(verifierCardId)}`;
 
   return (
     <>
       <div style={{ maxWidth: "960px", margin: "0 auto", padding: "88px 24px 60px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: "24px", alignItems: "start" }}>
+        <div
+          className="dashboard-two-col"
+          style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: "24px", alignItems: "start" }}
+        >
 
           {/* SIDEBAR */}
-          <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "14px", padding: "20px", position: "sticky", top: "72px" }}>
+          <div
+            className="dashboard-sidebar"
+            style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "14px", padding: "20px", position: "sticky", top: "72px" }}
+          >
             <div style={{ textAlign: "center" }}>
               <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: avatarColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", fontWeight: 600, color: "#fff", margin: "0 auto 10px" }}>
                 {wallet[0].toUpperCase()}
@@ -317,7 +325,7 @@ function VerifyDashboard() {
             </div>
             <Divider my="16px" />
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <a href={`/verifier?wallet=${encodeURIComponent(wallet)}`} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", height: "38px", borderRadius: "10px", fontSize: "14px", fontWeight: 500, background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border-default)" }} className="btn-ghost">
+              <a href={`/verifier?cardId=${encodeURIComponent(verifierCardId)}`} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", height: "38px", borderRadius: "10px", fontSize: "14px", fontWeight: 500, background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border-default)" }} className="btn-ghost">
                 Open verifier <ExternalLink size={12} />
               </a>
               <button onClick={() => copyLink(verifierUrl)} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", height: "38px", borderRadius: "10px", fontSize: "14px", fontWeight: 500, background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border-default)", cursor: "pointer", fontFamily: "inherit" }} className="btn-ghost">
@@ -326,7 +334,7 @@ function VerifyDashboard() {
               </button>
               {verifiedCount > 0 && (
                 <a href={`/certificate/${wallet}`} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", height: "38px", borderRadius: "10px", fontSize: "14px", fontWeight: 500, background: "var(--accent)", color: "var(--text-inverse)", border: "none", textDecoration: "none" }} className="btn-primary">
-                  View VM Card
+                  View RialCard
                 </a>
               )}
               {verifiedCount > 0 && (
@@ -389,10 +397,10 @@ function VerifyDashboard() {
                   <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px" }}>
                     {verifiedCount === 3 ? " Fully Verified Builder" : `${verifiedCount} of 3 platforms verified`}
                   </p>
-                  <p style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Share your VM Card with the world</p>
+                  <p style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Share your RialCard with the world</p>
                 </div>
                 <a href={`/certificate/${wallet}`} style={{ flexShrink: 0, height: "38px", padding: "0 16px", borderRadius: "10px", background: "var(--accent)", color: "var(--text-inverse)", fontSize: "14px", fontWeight: 500, display: "flex", alignItems: "center", gap: "6px", textDecoration: "none" }}>
-                  View VM Card
+                  View RialCard
                 </a>
               </div>
             )}

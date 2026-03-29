@@ -3,6 +3,7 @@
 import { FormEvent, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AddressDisplay } from "@/components/ui/AddressDisplay";
+import { cardIdFromWallet } from "@/lib/card-id";
 
 type TrustLevel = "high" | "medium" | "low" | "none";
 type Platform = "github" | "discord" | "farcaster";
@@ -29,6 +30,12 @@ interface VerifyResponse {
   maxPossible: number;
   proofs: VerifyProof[];
   queriedAt: string;
+}
+
+interface CardLookupResponse {
+  success: boolean;
+  wallet?: string;
+  error?: string;
 }
 
 const PLATFORM_LABELS: Record<Platform, string> = {
@@ -67,8 +74,9 @@ function VerifierContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const walletParam = searchParams.get("wallet")?.trim() ?? "";
+  const cardIdParam = searchParams.get("cardId")?.trim().toUpperCase() ?? "";
 
-  const [walletInput, setWalletInput] = useState(walletParam);
+  const [walletInput, setWalletInput] = useState(walletParam || "");
   const [identity, setIdentity] = useState<VerifyResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,17 +120,70 @@ function VerifierContent() {
     }
   }, []);
 
+  const resolveWalletFromCardId = useCallback(async (cardId: string): Promise<string | null> => {
+    const normalized = String(cardId || "").trim().toUpperCase();
+    if (!normalized) return null;
+    try {
+      const response = await fetch(`/api/card?cardId=${encodeURIComponent(normalized)}`, {
+        cache: "no-store",
+      });
+      const data = (await response.json()) as CardLookupResponse;
+      if (!response.ok || !data.success || typeof data.wallet !== "string") {
+        return null;
+      }
+      return data.wallet.trim();
+    } catch {
+      return null;
+    }
+  }, []);
+
   useEffect(() => {
-    setWalletInput(walletParam);
-    if (!walletParam) {
+    const normalizedWallet = walletParam.trim();
+    const normalizedCardId = cardIdParam.trim().toUpperCase();
+
+    if (!normalizedWallet && !normalizedCardId) {
+      setWalletInput("");
       setIdentity(null);
       setHasLookup(false);
       setError(null);
       setIsLoading(false);
       return;
     }
-    void fetchIdentity(walletParam);
-  }, [walletParam, fetchIdentity]);
+
+    if (normalizedWallet) {
+      setWalletInput(normalizedWallet);
+      const securePath = `/verifier?cardId=${encodeURIComponent(cardIdFromWallet(normalizedWallet))}`;
+      if (!normalizedCardId) {
+        router.replace(securePath);
+      }
+      void fetchIdentity(normalizedWallet);
+      return;
+    }
+
+    let active = true;
+    setHasLookup(true);
+    setIsLoading(true);
+    setError(null);
+
+    void (async () => {
+      const resolvedWallet = await resolveWalletFromCardId(normalizedCardId);
+      if (!active) return;
+
+      if (!resolvedWallet) {
+        setIdentity(null);
+        setIsLoading(false);
+        setError("Verifier link is invalid or unavailable.");
+        return;
+      }
+
+      setWalletInput(resolvedWallet);
+      await fetchIdentity(resolvedWallet);
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [walletParam, cardIdParam, fetchIdentity, resolveWalletFromCardId, router]);
 
   const handleSubmit = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
@@ -135,15 +196,30 @@ function VerifierContent() {
         return;
       }
 
-      const currentWallet = walletParam;
-      const nextPath = `/verifier?wallet=${encodeURIComponent(trimmed)}`;
-      if (trimmed === currentWallet) {
-        void fetchIdentity(trimmed);
+      const inputCardId = trimmed.toUpperCase();
+      const isCardIdInput = inputCardId.startsWith("VM-");
+      const nextCardId = isCardIdInput ? inputCardId : cardIdFromWallet(trimmed);
+      const nextPath = `/verifier?cardId=${encodeURIComponent(nextCardId)}`;
+      if (cardIdParam === nextCardId) {
+        if (isCardIdInput) {
+          void (async () => {
+            const resolvedWallet = await resolveWalletFromCardId(nextCardId);
+            if (!resolvedWallet) {
+              setIdentity(null);
+              setHasLookup(true);
+              setError("Verifier link is invalid or unavailable.");
+              return;
+            }
+            await fetchIdentity(resolvedWallet);
+          })();
+        } else {
+          void fetchIdentity(trimmed);
+        }
       } else {
         router.replace(nextPath);
       }
     },
-    [walletInput, walletParam, fetchIdentity, router]
+    [walletInput, cardIdParam, fetchIdentity, resolveWalletFromCardId, router]
   );
 
   const verifiedPlatforms = identity?.verifiedPlatforms ?? [];
@@ -184,7 +260,7 @@ function VerifierContent() {
           <input
             value={walletInput}
             onChange={(event) => setWalletInput(event.target.value)}
-            placeholder="Wallet address"
+            placeholder="Wallet address or RialCard ID"
             style={{
               flex: 1,
               minWidth: "260px",
@@ -285,6 +361,7 @@ function VerifierContent() {
             </section>
           ) : (
             <div
+              className="verifier-results-grid"
               style={{
                 display: "grid",
                 gridTemplateColumns: "240px 1fr",
@@ -293,6 +370,7 @@ function VerifierContent() {
               }}
             >
               <aside
+                className="verifier-results-sidebar"
                 style={{
                   background: "var(--bg-surface)",
                   border: "1px solid var(--border-subtle)",

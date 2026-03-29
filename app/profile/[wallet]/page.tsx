@@ -9,6 +9,7 @@ import { AddressDisplay } from "@/components/ui/AddressDisplay";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { generateAvatarColor } from "@/lib/utils";
 import { APP_URL } from "@/lib/constants";
+import { cardIdFromWallet } from "@/lib/card-id";
 import { MOCK_WALLET, MOCK_PROOFS } from "@/lib/mock-data";
 import type { ProofRecord, VerificationState, Platform } from "@/lib/types";
 
@@ -54,7 +55,8 @@ export default function ProfilePage({ params }: PageProps) {
 
   const verifiedCount = verifications.filter((v) => v.status === "verified").length;
   const avatarColor = generateAvatarColor(wallet);
-  const verifierUrl = `${APP_URL}/verifier?wallet=${encodeURIComponent(rawWallet)}`;
+  const verifierCardId = cardIdFromWallet(wallet);
+  const verifierUrl = `${APP_URL}/verifier?cardId=${encodeURIComponent(verifierCardId)}`;
 
   const handleDemoRevoke = async (_platform: Platform) => {};
   const handleDemoUpdate = (_platform: Platform) => {};
@@ -63,8 +65,14 @@ export default function ProfilePage({ params }: PageProps) {
 
   return (
     <div style={{ maxWidth: "960px", margin: "0 auto", padding: "88px 24px 60px" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: "24px", alignItems: "start" }}>
-        <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "14px", padding: "20px", position: "sticky", top: "72px" }}>
+      <div
+        className="dashboard-two-col"
+        style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: "24px", alignItems: "start" }}
+      >
+        <div
+          className="dashboard-sidebar"
+          style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "14px", padding: "20px", position: "sticky", top: "72px" }}
+        >
           <div style={{ textAlign: "center" }}>
             <div
               style={{
@@ -115,7 +123,7 @@ export default function ProfilePage({ params }: PageProps) {
 
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             <a
-              href={`/verifier?wallet=${encodeURIComponent(rawWallet)}`}
+              href={`/verifier?cardId=${encodeURIComponent(verifierCardId)}`}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -176,7 +184,7 @@ export default function ProfilePage({ params }: PageProps) {
                 }}
                 className="btn-primary"
               >
-                View VM Card
+                View RialCard
               </a>
             )}
 
@@ -260,7 +268,7 @@ export default function ProfilePage({ params }: PageProps) {
                 <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px" }}>
                   {verifiedCount === 3 ? "Fully Verified Builder" : `${verifiedCount} of 3 platforms verified`}
                 </p>
-                <p style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Share your VM Card with the world</p>
+                <p style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Share your RialCard with the world</p>
               </div>
               <a
                 href={`/certificate/${wallet}`}
@@ -279,7 +287,7 @@ export default function ProfilePage({ params }: PageProps) {
                   textDecoration: "none",
                 }}
               >
-                View VM Card
+                View RialCard
               </a>
             </div>
           )}

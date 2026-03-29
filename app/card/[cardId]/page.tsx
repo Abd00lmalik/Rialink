@@ -25,7 +25,7 @@ export default async function CardPage({ params }: { params: { cardId: string } 
     return (
       <div style={{ minHeight: "100vh", background: "var(--bg-base)", padding: "96px 16px", color: "var(--text-primary)" }}>
         <div style={{ maxWidth: 460, margin: "0 auto", textAlign: "center" }}>
-          <h1 style={{ margin: 0 }}>VM Card not found</h1>
+          <h1 style={{ margin: 0 }}>RialCard not found</h1>
           <p style={{ color: "var(--text-secondary)" }}>Check the card ID and try again.</p>
         </div>
       </div>
@@ -46,7 +46,7 @@ export default async function CardPage({ params }: { params: { cardId: string } 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg-base)", padding: "96px 16px", color: "var(--text-primary)" }}>
       <div style={{ maxWidth: 460, margin: "0 auto" }}>
-        <h1 style={{ margin: 0, fontSize: 44 }}>VM Card</h1>
+        <h1 style={{ margin: 0, fontSize: 44 }}>RialCard</h1>
         <p style={{ marginTop: 8, color: "var(--text-secondary)" }}>Public card lookup by Card ID.</p>
 
         <div
@@ -93,7 +93,7 @@ export default async function CardPage({ params }: { params: { cardId: string } 
         </div>
 
         <div style={{ marginTop: 12, display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <Link href={`/verifier?wallet=${encodeURIComponent(wallet)}`} style={{ color: "#5ce1e6", textDecoration: "none" }}>
+          <Link href={`/verifier?cardId=${encodeURIComponent(cardId)}`} style={{ color: "#5ce1e6", textDecoration: "none" }}>
             Open verifier
           </Link>
           <Link href={`/certificate/${wallet}`} style={{ color: "#5ce1e6", textDecoration: "none" }}>
