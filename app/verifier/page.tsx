@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AddressDisplay } from "@/components/ui/AddressDisplay";
 
@@ -61,7 +61,7 @@ function platformAccent(platform: Platform): string {
   return "rgba(244,114,182,0.22)";
 }
 
-export default function VerifierPage() {
+function VerifierContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const walletParam = searchParams.get("wallet")?.trim() ?? "";
@@ -558,5 +558,19 @@ export default function VerifierPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function VerifierPage() {
+  return (
+    <Suspense
+      fallback={
+        <div style={{ maxWidth: "960px", margin: "0 auto", padding: "88px 24px 60px" }}>
+          <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>Loading verifier...</p>
+        </div>
+      }
+    >
+      <VerifierContent />
+    </Suspense>
   );
 }
