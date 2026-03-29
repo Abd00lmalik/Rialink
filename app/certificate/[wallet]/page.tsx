@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ProofRecord } from "@/lib/types";
 import { APP_URL } from "@/lib/constants";
 import { cardIdFromWallet } from "@/lib/card-id";
+import { useWallet } from "@solana/wallet-adapter-react";
 const ORDER = ["github", "discord", "farcaster"] as const;
 
 function shortWallet(wallet: string) {
@@ -67,6 +68,7 @@ function computeScore(proofs: ProofRecord[]) {
 
 export default function CertificatePage({ params }: { params: { wallet: string } }) {
   const wallet = params.wallet;
+  const { publicKey } = useWallet();
   const [proofs, setProofs] = useState<ProofRecord[]>([]);
   const [copied, setCopied] = useState(false);
 
@@ -98,6 +100,8 @@ export default function CertificatePage({ params }: { params: { wallet: string }
     if (!topProof) return shortWallet(wallet);
     return topProof.fullName || topProof.username || shortWallet(wallet);
   }, [topProof, wallet]);
+  const connectedWallet = useMemo(() => publicKey?.toBase58() ?? "", [publicKey]);
+  const isOwner = connectedWallet === wallet;
 
   const shareUrl = typeof window !== "undefined" ? window.location.href : `${APP_URL}/certificate/${wallet}`;
   const xText = encodeURIComponent(`My Rialink RialCard score is ${score.total}/100 on Rialo Devnet.`);
@@ -237,47 +241,63 @@ export default function CertificatePage({ params }: { params: { wallet: string }
             }}
           >
             <span>Non-custodial signal card</span>
-            <span>Shareable on X</span>
+            <span>{isOwner ? "Owner-controlled sharing" : "View only"}</span>
           </div>
         </div>
 
-        <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-          <a
-            href={xUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              height: 42,
-              borderRadius: 10,
-              background: "linear-gradient(135deg, #14b8a6, #38bdf8)",
-              color: "#ffffff",
-              textDecoration: "none",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 700,
-              fontSize: 13,
-            }}
-          >
-            Share RialCard on X
-          </a>
+        {isOwner ? (
+          <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+            <a
+              href={xUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                height: 42,
+                borderRadius: 10,
+                background: "linear-gradient(135deg, #14b8a6, #38bdf8)",
+                color: "#ffffff",
+                textDecoration: "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 700,
+                fontSize: 13,
+              }}
+            >
+              Share RialCard on X
+            </a>
 
-          <button
-            onClick={copyLink}
+            <button
+              onClick={copyLink}
+              style={{
+                height: 38,
+                borderRadius: 10,
+                border: "1px solid rgba(146,170,255,0.35)",
+                background: "transparent",
+                color: "#e6edff",
+                fontWeight: 600,
+                cursor: "pointer",
+                fontSize: 12,
+              }}
+            >
+              {copied ? "Copied" : "Copy RialCard link"}
+            </button>
+          </div>
+        ) : (
+          <div
             style={{
-              height: 38,
+              marginTop: 12,
               borderRadius: 10,
-              border: "1px solid rgba(146,170,255,0.35)",
-              background: "transparent",
-              color: "#e6edff",
-              fontWeight: 600,
-              cursor: "pointer",
-              fontSize: 12,
+              border: "1px solid rgba(146,170,255,0.25)",
+              background: "rgba(15,23,42,0.45)",
+              padding: "10px 12px",
             }}
           >
-            {copied ? "Copied" : "Copy RialCard link"}
-          </button>
-        </div>
+            <p style={{ margin: 0, fontSize: 12, color: "rgba(230,237,255,0.85)" }}>
+              View-only mode. Sharing controls are available only to the wallet owner.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
-﻿const JS_QUICK_START = `const res = await fetch(
-  'https://rialink-two.vercel.app/api/verify/WALLET_ADDRESS'
+const JS_QUICK_START = `const res = await fetch(
+  'https://rialink.vercel.app/api/verify/WALLET_ADDRESS'
 );
 const identity = await res.json();
 
@@ -9,14 +9,14 @@ if (identity.trustLevel === 'high') {
 
 const PYTHON_QUICK_START = `import requests
 r = requests.get(
-  'https://rialink-two.vercel.app/api/verify/WALLET_ADDRESS'
+  'https://rialink.vercel.app/api/verify/WALLET_ADDRESS'
 )
 identity = r.json()
 
 if identity['trustLevel'] == 'high':
     # grant access`;
 
-const CURL_QUICK_START = `curl https://rialink-two.vercel.app/api/verify/WALLET_ADDRESS`;
+const CURL_QUICK_START = `curl https://rialink.vercel.app/api/verify/WALLET_ADDRESS`;
 
 const POLICY_REQUEST = `POST /api/policy/check
 Content-Type: application/json
@@ -393,5 +393,6 @@ export default function DevelopersPage() {
     </main>
   );
 }
+
 
 
