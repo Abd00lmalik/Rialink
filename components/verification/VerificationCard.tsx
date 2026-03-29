@@ -65,6 +65,7 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
   const { platform, status, proof, error } = state;
   const Icon = PLATFORM_ICONS[platform];
   const color = PLATFORM_COLORS[platform];
+  const platformLabel = platform.charAt(0).toUpperCase() + platform.slice(1);
   const [showRevokeModal, setShowRevokeModal] = useState(false);
   const [revoking, setRevoking] = useState(false);
 
@@ -98,7 +99,7 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <Icon size={20} />
             <span style={{ fontSize: "16px", fontWeight: 500, color: "var(--text-primary)" }}>
-              {platform.charAt(0).toUpperCase() + platform.slice(1)}
+              {platformLabel}
             </span>
             <span style={{ fontSize: "11px", fontWeight: 500, padding: "2px 7px", borderRadius: "6px", background: PLATFORM_TAG_BG[platform], color }}>
               {PLATFORM_TAG[platform]}
@@ -116,7 +117,7 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
               <FarcasterSignIn onSuccess={(data) => onFarcasterConnect?.(data)} onError={() => {}} />
             ) : (
               <button onClick={handleConnect} className="btn-primary" style={{ width: "100%", height: "38px", borderRadius: "10px", background: "var(--accent)", color: "var(--text-inverse)", border: "none", cursor: "pointer", fontSize: "14px", fontWeight: 500, fontFamily: "inherit" }}>
-                Connect {platform.charAt(0).toUpperCase() + platform.slice(1)}
+                Connect {platformLabel}
               </button>
             )}
             <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "8px", textAlign: "center" }}>
@@ -156,7 +157,7 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
                 </p>
                 <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
                   <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                    ID {proof.userId}
+                    Verified via {platformLabel}
                   </span>
                   {platform === "github" && proof.repoCount !== undefined && (
                     <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{proof.repoCount} public repos</span>
@@ -174,12 +175,6 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
                   </span>
                 </div>
               </div>
-            </div>
-
-            <div style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "10px 12px", marginBottom: "12px" }}>
-              <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0 }}>
-                Proof method: {proof.proofMethod}. Wallet signature and provider verification were bound server-side.
-              </p>
             </div>
 
             {/* Actions */}
@@ -228,7 +223,7 @@ export function VerificationCard({ state, wallet, readOnly = false, onRevoke, on
         }
       >
         <p style={{ fontSize: "14px", color: "var(--text-secondary)", lineHeight: 1.65 }}>
-          This will remove your {platform.charAt(0).toUpperCase() + platform.slice(1)} verification. You can reconnect at any time.
+          This will remove your {platformLabel} verification. You can reconnect at any time.
         </p>
       </Modal>
     </div>
