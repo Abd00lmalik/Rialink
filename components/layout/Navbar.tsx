@@ -52,16 +52,6 @@ export function Navbar() {
         }}
       >
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-          <img
-            src="/rialink-mark.svg"
-            alt="Rialink logo"
-            style={{
-              width: '22px',
-              height: '22px',
-              borderRadius: '6px',
-              border: '1px solid rgba(222,218,204,0.22)',
-            }}
-          />
           <span style={{ fontSize: '16px', fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
             Rialink
           </span>

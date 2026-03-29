@@ -10,11 +10,6 @@ import { Footer } from "@/components/layout/Footer";
 export const metadata: Metadata = {
   title: "Rialink - Decentralized Identity on Rialo",
   description: "Link your GitHub, Discord, and Farcaster accounts to your wallet. Permanent, cryptographic proof on the Rialo blockchain.",
-  icons: {
-    icon: "/icon.svg",
-    shortcut: "/icon.svg",
-    apple: "/icon.svg",
-  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -26,17 +21,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
       </head>
       <body>
-        <div className="rialo-theme-bg" aria-hidden="true" />
-        <div className="app-shell">
-          <Providers>
-            <WalletProvider>
-              <Navbar />
-              <WalletModal />
-              <main style={{ minHeight: "100vh" }}>{children}</main>
-              <Footer />
-            </WalletProvider>
-          </Providers>
-        </div>
+        <Providers>
+          <WalletProvider>
+            <Navbar />
+            <WalletModal />
+            <main style={{ minHeight: "100vh" }}>{children}</main>
+            <Footer />
+          </WalletProvider>
+        </Providers>
       </body>
     </html>
   );

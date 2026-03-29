@@ -30,8 +30,6 @@
   --github:         #7C3AED;
   --discord:        #5865F2;
   --farcaster:      #855DCD;
-  --rialo-cream:    #DEDACC;
-  --rialo-cream-muted: #BDB9AE;
 }
 
 * { box-sizing: border-box; padding: 0; margin: 0; }
@@ -45,43 +43,6 @@ html, body {
   font-size: 14px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
-}
-
-body {
-  position: relative;
-}
-
-.app-shell {
-  position: relative;
-  z-index: 1;
-}
-
-.rialo-theme-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(1200px 520px at 15% -10%, rgba(92,225,230,0.12), transparent 65%),
-    radial-gradient(1000px 520px at 100% 110%, rgba(124,58,237,0.14), transparent 68%),
-    #07090f;
-}
-
-.rialo-theme-bg::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: url('/rialo-pattern.svg');
-  background-size: 540px auto;
-  background-repeat: repeat;
-  opacity: 0.12;
-}
-
-.rialo-theme-bg::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(10,11,15,0.35), rgba(10,11,15,0.62));
 }
 
 a { color: inherit; text-decoration: none; }
