@@ -10,6 +10,11 @@ import { Footer } from "@/components/layout/Footer";
 export const metadata: Metadata = {
   title: "Rialink - Decentralized Identity on Rialo",
   description: "Link your GitHub, Discord, and Farcaster accounts to your wallet. Permanent, cryptographic proof on the Rialo blockchain.",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
