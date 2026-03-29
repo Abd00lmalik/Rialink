@@ -113,6 +113,8 @@ export async function POST(req: NextRequest) {
           ? "Verification token expired. Reconnect platform."
           : verifiedSession.error === "wallet_mismatch"
           ? "Verification token is bound to a different wallet."
+          : verifiedSession.error === "platform_mismatch"
+          ? "Verification token platform mismatch."
           : "Invalid verification token.";
       return NextResponse.json(
         {
@@ -188,7 +190,7 @@ export async function POST(req: NextRequest) {
       );
     }
     return NextResponse.json(
-      { success: false, error: err instanceof Error ? err.message : String(err) },
+      { success: false, error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -222,9 +224,9 @@ export async function DELETE(req: NextRequest) {
       cardId: result.cardId,
       identityRoot: result.identityRoot,
     });
-  } catch (err) {
+  } catch {
     return NextResponse.json(
-      { success: false, error: err instanceof Error ? err.message : String(err) },
+      { success: false, error: "Internal server error" },
       { status: 500 }
     );
   }

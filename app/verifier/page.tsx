@@ -32,10 +32,10 @@ function VerifierDashboard() {
     expiresAt?: number | null;
   } | null>(null);
   const [proofChecks, setProofChecks] = useState<Record<string, string>>({});
+  const [copiedUsernameKey, setCopiedUsernameKey] = useState<string | null>(null);
 
   const { copy: copyToken, copied: tokenCopied } = useCopyToClipboard();
   const { copy: copyWallet, copied: walletCopied } = useCopyToClipboard();
-  const { copy: copyUsername, copied: usernameCopied } = useCopyToClipboard();
 
   const vmCardUrl = useMemo(() => {
     if (!walletResult) return "";
@@ -57,6 +57,7 @@ function VerifierDashboard() {
     setProofs([]);
     setPolicyResult(null);
     setProofChecks({});
+    setCopiedUsernameKey(null);
 
     try {
       const res = await fetch(`/api/proof?wallet=${encodeURIComponent(trimmed)}`);
@@ -151,22 +152,40 @@ function VerifierDashboard() {
       });
       const data = await res.json();
       if (!res.ok || !data?.valid) {
+        const errorCode =
+          data?.error && typeof data.error.code === "string" ? data.error.code : "";
+        const errorMessage =
+          data?.error && typeof data.error.message === "string"
+            ? data.error.message
+            : typeof data?.error === "string"
+            ? data.error
+            : "verification failed";
         setProofChecks((prev) => ({
           ...prev,
-          [key]: `Invalid proof: ${data?.error || "verification failed"}`,
+          [key]: `Invalid proof${errorCode ? ` (${errorCode})` : ""}: ${errorMessage}`,
         }));
         return;
       }
 
       setProofChecks((prev) => ({
         ...prev,
-        [key]: `Valid proof for ${data.platform}:${data.username}`,
+        [key]: `Valid proof: ${data.username} (${data.platform}) is bound to ${proof.wallet}`,
       }));
     } catch {
       setProofChecks((prev) => ({
         ...prev,
         [key]: "Proof verification request failed",
       }));
+    }
+  }, []);
+
+  const handleCopyUsername = useCallback(async (key: string, username: string) => {
+    try {
+      await navigator.clipboard.writeText(username);
+      setCopiedUsernameKey(key);
+      setTimeout(() => setCopiedUsernameKey((prev) => (prev === key ? null : prev)), 1500);
+    } catch {
+      setCopiedUsernameKey(null);
     }
   }, []);
 
@@ -275,7 +294,7 @@ function VerifierDashboard() {
                   </span>
                 ))}
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", color: verifiedCount >= 2 ? "var(--success)" : "var(--text-secondary)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", color: trustLevel === "high" ? "var(--success)" : trustLevel === "medium" ? "var(--accent-text)" : "var(--text-secondary)" }}>
                 {trustLevel === "high" ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
                 <p style={{ margin: 0, fontSize: "13px" }}>
                   {trustLabel} ({verifiedCount}/3 platforms verified)
@@ -310,6 +329,9 @@ function VerifierDashboard() {
                       </div>
                       <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>User ID: {proof.userId}</p>
                       <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                        Wallet: <span style={{ fontFamily: "monospace" }}>{proof.wallet}</span>
+                      </p>
+                      <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>
                         Verified at: {new Date(proof.verifiedAt).toLocaleString()}
                       </p>
                       <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>
@@ -317,16 +339,16 @@ function VerifierDashboard() {
                       </p>
                       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "8px" }}>
                         <button
-                          onClick={() => copyUsername(proof.username)}
+                          onClick={() => handleCopyUsername(`${proof.platform}-${proof.userId}`, proof.username)}
                           style={{ height: "28px", padding: "0 8px", borderRadius: "8px", border: "1px solid var(--border-default)", background: "transparent", color: "var(--text-secondary)", fontSize: "12px", cursor: "pointer" }}
                         >
-                          {usernameCopied ? "Copied" : "Copy username"}
+                          {copiedUsernameKey === `${proof.platform}-${proof.userId}` ? "Copied" : "Copy username"}
                         </button>
                         <button
                           onClick={() => handleVerifyProof(proof)}
                           style={{ height: "28px", padding: "0 8px", borderRadius: "8px", border: "1px solid var(--border-default)", background: "transparent", color: "var(--text-secondary)", fontSize: "12px", cursor: "pointer" }}
                         >
-                          Verify this proof
+                          Verify cryptographic proof
                         </button>
                       </div>
                       {proofChecks[`${proof.platform}-${proof.userId}`] && (

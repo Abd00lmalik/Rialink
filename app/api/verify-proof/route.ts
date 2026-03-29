@@ -1,24 +1,57 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyBindingProofToken } from "@/lib/server/binding-proof";
+import {
+  verifyBindingProofToken,
+  type VerifyBindingProofErrorCode,
+} from "@/lib/server/binding-proof";
 
 export const runtime = "nodejs";
 
+function errorResponse(status: number, code: string, message: string) {
+  return NextResponse.json(
+    {
+      valid: false,
+      error: { code, message },
+    },
+    { status }
+  );
+}
+
+function statusForProofError(code: VerifyBindingProofErrorCode): number {
+  switch (code) {
+    case "malformed_proof":
+    case "invalid_payload":
+    case "proof_hash_mismatch":
+    case "wallet_message_mismatch":
+      return 400;
+    case "invalid_signature":
+    case "wallet_signature_invalid":
+      return 401;
+    case "verification_failed":
+      return 500;
+    default:
+      return 400;
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const bindingProof = String(body?.binding_proof || "").trim();
+    const body = (await req.json().catch(() => null)) as
+      | Record<string, unknown>
+      | null;
+    const bindingProof =
+      body && typeof body === "object"
+        ? String(body.binding_proof || "").trim()
+        : "";
     if (!bindingProof) {
-      return NextResponse.json(
-        { valid: false, error: "binding_proof is required" },
-        { status: 400 }
-      );
+      return errorResponse(400, "missing_binding_proof", "binding_proof is required");
     }
 
     const verify = verifyBindingProofToken(bindingProof);
     if (!verify.valid) {
-      return NextResponse.json(
-        { valid: false, error: verify.error },
-        { status: 401 }
+      return errorResponse(
+        statusForProofError(verify.error.code),
+        verify.error.code,
+        verify.error.message
       );
     }
 
@@ -30,13 +63,7 @@ export async function POST(req: NextRequest) {
       username: verify.payload.username,
       verified_at: verify.payload.verifiedAt,
     });
-  } catch (err) {
-    return NextResponse.json(
-      {
-        valid: false,
-        error: err instanceof Error ? err.message : "Proof verification failed",
-      },
-      { status: 500 }
-    );
+  } catch {
+    return errorResponse(500, "verify_proof_failed", "Proof verification failed");
   }
 }
