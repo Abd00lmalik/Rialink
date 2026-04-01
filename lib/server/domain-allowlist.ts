@@ -2,6 +2,15 @@ function normalizeHost(value: string): string {
   return value.trim().toLowerCase();
 }
 
+const DEFAULT_TRUSTED_DOMAINS = [
+  "localhost",
+  "localhost:3000",
+  "127.0.0.1",
+  "127.0.0.1:3000",
+  "verifyme-two.vercel.app",
+  "rialink-two.vercel.app",
+];
+
 function hostFromUrl(urlLike: string): string | null {
   const input = String(urlLike || "").trim();
   if (!input) return null;
@@ -16,6 +25,10 @@ function hostFromUrl(urlLike: string): string | null {
 
 export function getAllowedProofDomains(): Set<string> {
   const allowed = new Set<string>();
+  for (const host of DEFAULT_TRUSTED_DOMAINS) {
+    allowed.add(normalizeHost(host));
+  }
+
   const appUrlHost = hostFromUrl(process.env.NEXT_PUBLIC_APP_URL || "");
   if (appUrlHost) {
     allowed.add(appUrlHost);
@@ -35,5 +48,12 @@ export function isAllowedProofDomain(domain: string): boolean {
   const normalized = normalizeHost(domain);
   if (!normalized) return false;
   const allowed = getAllowedProofDomains();
-  return allowed.has(normalized);
+  if (allowed.has(normalized)) return true;
+
+  // Keep local development usable even when env host config is missing.
+  if (process.env.NODE_ENV !== "production") {
+    return normalized.startsWith("localhost") || normalized.startsWith("127.0.0.1");
+  }
+
+  return false;
 }

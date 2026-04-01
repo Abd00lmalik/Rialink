@@ -2,8 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAppClient, viemConnector } from "@farcaster/auth-client";
 import { issueVerifiedSocialSession } from "@/lib/server/verification-session";
 import { isValidWalletAddress } from "@/lib/server/wallet";
+import { isAllowedProofDomain } from "@/lib/server/domain-allowlist";
+import { computeProofHash, computeUsernameHash } from "@/lib/proof-hash";
 
 export const runtime = "nodejs";
+
+function maskUsername(username: string): string {
+  const normalized = String(username || "").trim();
+  if (!normalized || normalized.length <= 2) return normalized;
+  return `${normalized[0]}${"*".repeat(normalized.length - 2)}${normalized[normalized.length - 1]}`;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,10 +32,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid wallet address" }, { status: 400 });
     }
 
-    const expectedDomain = new URL(
-      process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin
-    ).host;
-    if (domain.toLowerCase() !== expectedDomain.toLowerCase()) {
+    if (!isAllowedProofDomain(domain)) {
       return NextResponse.json({ error: "Invalid Farcaster domain" }, { status: 400 });
     }
 
@@ -115,6 +120,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       platform: "farcaster",
+      proofHash: computeProofHash({
+        wallet,
+        platform: "farcaster",
+        platformUserId: String(fid),
+        nonce: "legacy",
+        version: "v1",
+      }),
+      usernameHash: computeUsernameHash({
+        platform: "farcaster",
+        username,
+      }),
+      maskedUsername: maskUsername(username),
+      pfpUrl: resolvedPfp,
+      followerCount: Number.isFinite(followerCount) ? followerCount : 0,
       verificationToken: verifiedSession.id,
       expiresAt: verifiedSession.expiresAt,
     });

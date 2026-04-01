@@ -126,7 +126,17 @@ function normalizeProofRecord(value: unknown, walletFromKey?: string): ProofReco
       nonce,
       version,
     });
-  const signature = String(row.signature || "").trim() || signProof(proofHash);
+  let signature = String(row.signature || "").trim();
+  if (!signature) {
+    try {
+      signature = signProof(proofHash);
+    } catch {
+      // Legacy compatibility fallback when signing secret is not configured yet.
+      signature = createHash("sha256")
+        .update(`rialink:legacy-signature|${proofHash}`)
+        .digest("hex");
+    }
+  }
 
   const bindingProof =
     row.bindingProof && typeof row.bindingProof === "object"
