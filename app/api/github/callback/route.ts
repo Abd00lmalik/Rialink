@@ -3,8 +3,14 @@ import {
   consumeOAuthRequestSession,
   issueVerifiedSocialSession,
 } from "@/lib/server/verification-session";
+import { computeProofHash, computeUsernameHash } from "@/lib/proof-hash";
 
 export const runtime = "nodejs";
+
+function maskUsername(username: string): string {
+  if (!username || username.length <= 4) return username;
+  return `${username.slice(0, 2)}****${username.slice(-2)}`;
+}
 
 async function getCommitCountFromRecentPublicEvents(
   login: string,
@@ -111,7 +117,7 @@ async function getCommitCount(login: string, token: string): Promise<number> {
 }
 
 export async function GET(req: NextRequest) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
+  const appUrl = req.nextUrl.origin || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const { searchParams } = new URL(req.url);
   const code = String(searchParams.get("code") || "").trim();
   const state = String(searchParams.get("state") || "").trim();
@@ -189,6 +195,19 @@ export async function GET(req: NextRequest) {
       success: "true",
       platform: "github",
       session: verifiedSession.id,
+      wallet: oauthSession.wallet,
+      proofHash: computeProofHash({
+        wallet: oauthSession.wallet,
+        platform: "github",
+        platformUserId: userId,
+        nonce: "legacy",
+        version: "v1",
+      }),
+      usernameHash: computeUsernameHash({ platform: "github", username }),
+      maskedUsername: maskUsername(username),
+      pfpUrl: avatarUrl,
+      repoCount: String(Number.isFinite(publicRepos) ? publicRepos : 0),
+      commitCount: String(Number.isFinite(commitCount) ? commitCount : 0),
     });
 
     return NextResponse.redirect(`${appUrl}/verify?${params.toString()}`);

@@ -22,7 +22,16 @@ export function getRequestIp(req: NextRequest): string {
     const first = forwarded.split(",")[0]?.trim();
     if (first) return first;
   }
-  return req.headers.get("x-real-ip") || "unknown";
+  const fallbackHeaders = [
+    "x-real-ip",
+    "x-vercel-forwarded-for",
+    "cf-connecting-ip",
+  ];
+  for (const header of fallbackHeaders) {
+    const value = req.headers.get(header)?.trim();
+    if (value) return value;
+  }
+  return "unknown";
 }
 
 export async function checkRateLimit(rule: RateLimitRule): Promise<RateLimitResult> {

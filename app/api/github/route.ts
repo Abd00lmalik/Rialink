@@ -5,7 +5,7 @@ import { isValidWalletAddress, normalizeWallet } from "@/lib/server/wallet";
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
+  const appUrl = req.nextUrl.origin || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const { searchParams } = new URL(req.url);
   const wallet = normalizeWallet(searchParams.get("wallet"));
   const clientId = process.env.GITHUB_CLIENT_ID;
