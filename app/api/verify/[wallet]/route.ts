@@ -4,6 +4,9 @@ import type { ProofRecord } from "@/lib/types";
 import { computeProofHash } from "@/lib/proof-hash";
 import { signProof } from "@/lib/server/proof-signing";
 import { verifyStoredProof } from "@/lib/server/verify-proof";
+import { withPublicCors, publicCorsOptions } from "@/lib/server/cors";
+import { deriveTrustLevelFromCount } from "@/lib/trust-level";
+import { isValidWalletAddress } from "@/lib/server/wallet";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,18 +35,6 @@ interface StoredProofRow {
 
 const MAX_POSSIBLE = 3;
 const PLATFORM_ORDER: Platform[] = ["github", "discord", "farcaster"];
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-} as const;
-
-function withCors(response: NextResponse): NextResponse {
-  Object.entries(CORS_HEADERS).forEach(([key, value]) => {
-    response.headers.set(key, value);
-  });
-  return response;
-}
 
 function isPlatform(value: string): value is Platform {
   return PLATFORM_ORDER.includes(value as Platform);
@@ -62,13 +53,6 @@ function toNumberOrUndefined(value: unknown): number | undefined {
   const num = Number(value);
   if (!Number.isFinite(num)) return undefined;
   return num;
-}
-
-function deriveTrustLevel(totalVerified: number): "high" | "medium" | "low" | "none" {
-  if (totalVerified >= 3) return "high";
-  if (totalVerified >= 2) return "medium";
-  if (totalVerified >= 1) return "low";
-  return "none";
 }
 
 function normalizeProofRow(row: unknown, walletFromKey?: string): StoredProofRow | null {
@@ -191,7 +175,7 @@ function toProofRecord(proof: StoredProofRow): ProofRecord {
 }
 
 export async function OPTIONS() {
-  return withCors(new NextResponse(null, { status: 204 }));
+  return publicCorsOptions("GET, OPTIONS");
 }
 
 export async function GET(
@@ -200,11 +184,21 @@ export async function GET(
 ) {
   const wallet = String(context.params.wallet || "").trim();
   if (!wallet) {
-    return withCors(
+    return withPublicCors(
       NextResponse.json(
         { error: "wallet is required", queriedAt: new Date().toISOString() },
         { status: 400 }
-      )
+      ),
+      "GET, OPTIONS"
+    );
+  }
+  if (!isValidWalletAddress(wallet)) {
+    return withPublicCors(
+      NextResponse.json(
+        { error: "Invalid wallet address", queriedAt: new Date().toISOString() },
+        { status: 400 }
+      ),
+      "GET, OPTIONS"
     );
   }
 
@@ -221,7 +215,7 @@ export async function GET(
     proofs.some((proof) => proof.platform === platform)
   );
   const totalVerified = verifiedPlatforms.length;
-  const trustLevel = deriveTrustLevel(totalVerified);
+  const trustLevel = deriveTrustLevelFromCount(totalVerified);
 
   const response = NextResponse.json({
     wallet,
@@ -255,5 +249,5 @@ export async function GET(
     queriedAt: new Date().toISOString(),
   });
 
-  return withCors(response);
+  return withPublicCors(response, "GET, OPTIONS");
 }

@@ -1,38 +1,41 @@
-﻿import { NextResponse } from "next/server";
-import { Redis } from "@upstash/redis";
-import { MOCK_WALLET } from "@/lib/mock-data";
+import { NextRequest, NextResponse } from "next/server";
+import { getNetworkStats } from "@/lib/server/proof-storage";
+import { checkRateLimit, getRequestIp } from "@/lib/server/rate-limit";
+import { withPublicCors, publicCorsOptions } from "@/lib/server/cors";
 
-const redis = Redis.fromEnv();
-const KEY_PREFIX = "proofs:";
+export const runtime = "nodejs";
 
-export async function GET() {
+export async function OPTIONS() {
+  return publicCorsOptions("GET, OPTIONS");
+}
+
+export async function GET(req: NextRequest) {
   try {
-    const keys = (await redis.keys(`${KEY_PREFIX}*`)) as string[];
-    if (!Array.isArray(keys) || keys.length === 0) {
-      return NextResponse.json({ wallets: 0, proofs: 0, platforms: 3 });
+    const ip = getRequestIp(req);
+    const rate = await checkRateLimit({
+      key: `stats:${ip}`,
+      limit: 120,
+      windowSeconds: 60,
+    });
+    if (!rate.ok) {
+      return withPublicCors(
+        NextResponse.json(
+          { error: "Too many requests. Please retry shortly." },
+          {
+            status: 429,
+            headers: { "Retry-After": String(rate.retryAfterSeconds || 60) },
+          }
+        ),
+        "GET, OPTIONS"
+      );
     }
 
-    const rows = await Promise.all(
-      keys.map(async (key) => {
-        const wallet = key.startsWith(KEY_PREFIX) ? key.slice(KEY_PREFIX.length) : key;
-        if (wallet === MOCK_WALLET) return { count: 0 };
-        const raw = await redis.llen(key);
-        const count = typeof raw === "number" ? raw : Number(raw || 0);
-        return { count: Number.isFinite(count) ? count : 0 };
-      })
-    );
-
-    let wallets = 0;
-    let proofs = 0;
-    for (const row of rows) {
-      if (row.count > 0) {
-        wallets += 1;
-        proofs += row.count;
-      }
-    }
-
-    return NextResponse.json({ wallets, proofs, platforms: 3 });
+    const stats = await getNetworkStats();
+    return withPublicCors(NextResponse.json(stats), "GET, OPTIONS");
   } catch {
-    return NextResponse.json({ wallets: 0, proofs: 0, platforms: 3 });
+    return withPublicCors(
+      NextResponse.json({ wallets: 0, proofs: 0, platforms: 3 }),
+      "GET, OPTIONS"
+    );
   }
 }

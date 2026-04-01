@@ -75,7 +75,7 @@ a { color: inherit; text-decoration: none; }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 .fade-in { animation: fade-in 0.15s ease forwards; }
 
-/* ── Button hover states ── */
+/* Button hover states */
 .btn-primary:hover:not(:disabled) {
   background: var(--accent-hover) !important;
 }
@@ -149,7 +149,7 @@ a { color: inherit; text-decoration: none; }
   background: var(--bg-hover) !important;
 }
 
-/* ── Wallet Adapter Modal ── */
+/* Wallet Adapter Modal */
 .wallet-adapter-modal-wrapper {
   background: #13161F !important;
   border: 1px solid #252838 !important;

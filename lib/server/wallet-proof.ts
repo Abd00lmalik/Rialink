@@ -4,6 +4,7 @@ import bs58 from "bs58";
 import { PublicKey } from "@solana/web3.js";
 import type { WalletProofPayload } from "@/lib/wallet-proof";
 import { buildWalletProofMessage } from "@/lib/wallet-proof";
+import { isAllowedProofDomain } from "@/lib/server/domain-allowlist";
 
 const redis = Redis.fromEnv();
 const CHALLENGE_TTL_SECONDS = 10 * 60;
@@ -47,6 +48,9 @@ export async function verifyWalletProof(wallet: string, proof: WalletProofPayloa
   const domain = extractDomainFromWalletMessage(proof.message);
   if (!domain) {
     return { ok: false, error: "Wallet proof message mismatch" };
+  }
+  if (!isAllowedProofDomain(domain)) {
+    return { ok: false, error: "Wallet proof domain is not allowed" };
   }
   const expectedMessage = buildWalletProofMessage({
     wallet,

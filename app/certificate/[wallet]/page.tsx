@@ -104,8 +104,14 @@ export default function CertificatePage({ params }: { params: { wallet: string }
   const isOwner = connectedWallet === wallet;
 
   const shareUrl = typeof window !== "undefined" ? window.location.href : `${APP_URL}/certificate/${wallet}`;
+  const storyUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/story/${encodeURIComponent(cardId)}`
+      : `${APP_URL}/story/${encodeURIComponent(cardId)}`;
   const xText = encodeURIComponent(`My Rialink RialCard score is ${score.total}/100 on Rialo Devnet.`);
   const xUrl = `https://twitter.com/intent/tweet?text=${xText}&url=${encodeURIComponent(shareUrl)}`;
+  const storyText = encodeURIComponent("My Rialink verification story is now live.");
+  const xStoryUrl = `https://twitter.com/intent/tweet?text=${storyText}&url=${encodeURIComponent(storyUrl)}`;
 
   function copyLink() {
     navigator.clipboard.writeText(shareUrl);
@@ -267,6 +273,27 @@ export default function CertificatePage({ params }: { params: { wallet: string }
               Share RialCard on X
             </a>
 
+            <a
+              href={xStoryUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                height: 40,
+                borderRadius: 10,
+                border: "1px solid rgba(92,225,230,0.5)",
+                background: "rgba(92,225,230,0.12)",
+                color: "#dff9ff",
+                textDecoration: "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 600,
+                fontSize: 12,
+              }}
+            >
+              Share Proof Story on X
+            </a>
+
             <button
               onClick={copyLink}
               style={{
@@ -298,6 +325,19 @@ export default function CertificatePage({ params }: { params: { wallet: string }
             </p>
           </div>
         )}
+
+        <a
+          href={storyUrl}
+          style={{
+            marginTop: 10,
+            display: "inline-flex",
+            color: "#9fe9ff",
+            textDecoration: "none",
+            fontSize: 12,
+          }}
+        >
+          View Proof Story timeline
+        </a>
       </div>
     </div>
   );

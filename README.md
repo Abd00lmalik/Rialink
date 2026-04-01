@@ -63,7 +63,7 @@ Rialink solves this by creating portable wallet-linked trust signals that can be
 
 ### Identity and Proof APIs
 - `GET /api/proof?wallet=<wallet>`
-  - internal/full proof rows for app surfaces
+  - wallet proof rows for app surfaces (sanitized, no raw binding token internals)
 - `POST /api/proof`
   - consumes verification session + wallet proof, saves proof
 - `DELETE /api/proof`
@@ -71,11 +71,11 @@ Rialink solves this by creating portable wallet-linked trust signals that can be
 - `POST /api/verify-proof`
   - trustless verification of signed `binding_proof` token
 - `GET /api/verify/[wallet]`
-  - public clean response for integrators:
+  - public verifier response for integrators:
     - trust level
     - verified platforms
-    - masked usernames
-    - summarized proof hashes
+    - username and profile metadata
+    - full proof hash + signature + nonce + issuedAt + version
 
 ### Policy APIs
 - `POST /api/policy/check`
@@ -122,11 +122,13 @@ Farcaster:
 
 If valid, server:
 1. consumes verification token (one-time, race-safe)
-2. computes deterministic `proofHash` from:
-   - wallet + platform + platform user ID
-3. creates signed `binding_proof` token
-4. stores proof row in Redis
-5. updates identity root hash for wallet
+2. creates nonce + issuedAt
+3. computes deterministic `proofHash` from:
+   - `rialink:v2|wallet|platform|platform user ID|nonce`
+4. signs proof hash with server HMAC (`PROOF_SIGNING_SECRET`)
+5. creates signed `binding_proof` token
+6. stores proof row in Redis
+7. updates identity root hash for wallet
 
 ### Step D - Public verification
 - Public consumers query `GET /api/verify/[wallet]`.
@@ -139,14 +141,18 @@ If valid, server:
 Current protections include:
 - wallet signature required before proof creation/removal
 - canonical wallet message enforcement (prevents hidden-line payload tampering)
+- wallet proof domain allowlist enforcement
 - short-lived verification sessions
 - one-time token consumption markers
 - lock keys to prevent race-condition double-consumption
 - wallet-bound and platform-bound verification sessions
 - reverse index to prevent one social account linking to multiple wallets
 - deterministic proof hash recomputation during proof verification
+- proof hash HMAC signature checks
+- nonce + issuedAt validation with expiry window on proof verification
 - HMAC-signed binding proof tokens
 - HMAC-signed policy access tokens with expiry checks
+- route-level rate limits on abuse-prone APIs
 
 ---
 
@@ -168,10 +174,9 @@ Not stored:
 - platform passwords
 - legal identity documents
 
-Public `/api/verify/[wallet]` response is additionally minimized:
-- masked usernames
-- shortened proof hashes
-- no internal session metadata
+Public APIs exclude internal session secrets such as:
+- raw `bindingProof.token`
+- wallet proof message/signature payload used during proof creation
 
 ---
 
@@ -322,8 +327,9 @@ Key variables used in this codebase:
 - `NEXT_PUBLIC_RIALO_EXPLORER_URL`
 - `POLICY_SIGNING_SECRET`
 - `PROOF_SIGNING_SECRET`
-- `PROOF_SECRET`
 - `POLICY_TOKEN_TTL_SECONDS`
+- `TRUSTED_WALLET_PROOF_DOMAINS`
+- `PUBLIC_CORS_ORIGIN`
 
 ---
 

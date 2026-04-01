@@ -6,6 +6,7 @@ import type { Platform } from "@/lib/types";
 import type { WalletProofPayload } from "@/lib/wallet-proof";
 import { buildWalletProofMessage } from "@/lib/wallet-proof";
 import { computeProofHash } from "@/lib/proof-hash";
+import { isAllowedProofDomain } from "@/lib/server/domain-allowlist";
 
 export interface BindingProof {
   method: string;
@@ -117,9 +118,9 @@ function extractDomainFromWalletMessage(message: string): string | null {
 }
 
 function getBindingSigningSecret() {
-  const secret = process.env.PROOF_SIGNING_SECRET || process.env.POLICY_SIGNING_SECRET;
+  const secret = process.env.PROOF_SIGNING_SECRET;
   if (!secret) {
-    throw new Error("Missing PROOF_SIGNING_SECRET (or POLICY_SIGNING_SECRET fallback)");
+    throw new Error("Missing PROOF_SIGNING_SECRET");
   }
   return secret;
 }
@@ -207,6 +208,9 @@ function verifyWalletProofMessage(payload: BindingProofPayload): boolean {
 
   const domain = extractDomainFromWalletMessage(message);
   if (!domain) {
+    return false;
+  }
+  if (!isAllowedProofDomain(domain)) {
     return false;
   }
 

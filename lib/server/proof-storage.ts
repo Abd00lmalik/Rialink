@@ -14,6 +14,9 @@ const PROOF_NONCE_PREFIX = "proof-nonce:";
 const PROOF_WALLET_LOCK_PREFIX = "proofs:lock:";
 const PLATFORM_USER_LOCK_PREFIX = "platform-user:lock:";
 const PROOF_NONCE_LOCK_PREFIX = "proof-nonce:lock:";
+const PROOF_WALLETS_INDEX_KEY = "proofs:wallet-index";
+const STATS_WALLETS_KEY = "stats:wallets";
+const STATS_PROOFS_KEY = "stats:proofs";
 
 const MUTATION_LOCK_TTL_SECONDS = 30;
 
@@ -60,6 +63,25 @@ function proofNonceLockKey(nonce: string) {
 
 function proofNonceOwner(wallet: string, platform: Platform, userId: string) {
   return `${wallet}:${platform}:${userId}`;
+}
+
+async function updateStats(args: {
+  wallet: string;
+  previousCount: number;
+  nextCount: number;
+}) {
+  const proofDelta = args.nextCount - args.previousCount;
+  if (proofDelta !== 0) {
+    await redis.incrby(STATS_PROOFS_KEY, proofDelta);
+  }
+
+  if (args.previousCount === 0 && args.nextCount > 0) {
+    await redis.sadd(PROOF_WALLETS_INDEX_KEY, args.wallet);
+    await redis.incrby(STATS_WALLETS_KEY, 1);
+  } else if (args.previousCount > 0 && args.nextCount === 0) {
+    await redis.srem(PROOF_WALLETS_INDEX_KEY, args.wallet);
+    await redis.incrby(STATS_WALLETS_KEY, -1);
+  }
 }
 
 function fallbackBindingProof(verifiedAt: string): ProofRecord["bindingProof"] {
@@ -197,7 +219,12 @@ async function withLocks<T>(lockKeys: string[], fn: () => Promise<T>): Promise<T
 }
 
 export async function getProofs(wallet: string): Promise<ProofRecord[]> {
-  return readWalletProofs(wallet);
+  const proofs = await readWalletProofs(wallet);
+  if (proofs.length > 0) {
+    await redis.sadd(PROOF_WALLETS_INDEX_KEY, wallet);
+    await redis.set(cardKey(cardIdFromWallet(wallet)), wallet);
+  }
+  return proofs;
 }
 
 export async function getIdentityRoot(wallet: string): Promise<string | null> {
@@ -231,6 +258,16 @@ export async function saveProof(wallet: string, proof: ProofRecord) {
   return withLocks(locks, async () => {
     const freshExisting = await readWalletProofs(wallet);
     const freshByPlatform = freshExisting.find((p) => p.platform === proof.platform);
+    if (freshByPlatform?.userId && freshByPlatform.userId !== existingByPlatform?.userId) {
+      throw new ProofConflictError("Proof changed during update. Please retry.");
+    }
+    if (
+      freshByPlatform?.nonce &&
+      freshByPlatform.nonce !== "legacy" &&
+      freshByPlatform.nonce !== existingByPlatform?.nonce
+    ) {
+      throw new ProofConflictError("Proof changed during update. Please retry.");
+    }
     const nextNonceOwner = proofNonceOwner(wallet, proof.platform, proof.userId);
 
     const accountOwner = await redis.get<string>(
@@ -250,6 +287,8 @@ export async function saveProof(wallet: string, proof: ProofRecord) {
 
     const filtered = freshExisting.filter((p) => p.platform !== proof.platform);
     const nextProofs = [...filtered, proof];
+    const previousCount = freshExisting.length;
+    const nextCount = nextProofs.length;
     await writeWalletProofs(wallet, nextProofs);
 
     // Keep reverse index in sync so one social account cannot be linked to multiple wallets.
@@ -285,6 +324,8 @@ export async function saveProof(wallet: string, proof: ProofRecord) {
     const identityRoot = computeIdentityRoot(nextProofs);
     const cardId = cardIdFromWallet(wallet);
     await redis.set(cardKey(cardId), wallet);
+    await redis.sadd(PROOF_WALLETS_INDEX_KEY, wallet);
+    await updateStats({ wallet, previousCount, nextCount });
 
     if (identityRoot) {
       await redis.set(rootKey(wallet), identityRoot);
@@ -300,6 +341,9 @@ export async function deleteProof(wallet: string, platform: Platform) {
   const existing = await readWalletProofs(wallet);
   const target = existing.find((p) => p.platform === platform);
   const locks = [walletLockKey(wallet)];
+  if (target?.userId) {
+    locks.push(platformUserLockKey(target.platform, target.userId));
+  }
   if (target?.nonce && target.nonce !== "legacy") {
     locks.push(proofNonceLockKey(target.nonce));
   }
@@ -307,7 +351,22 @@ export async function deleteProof(wallet: string, platform: Platform) {
   return withLocks(locks, async () => {
     const existing = await readWalletProofs(wallet);
     const removed = existing.find((p) => p.platform === platform);
+    if (removed?.userId && removed.userId !== target?.userId) {
+      // If platform ownership changed between pre-read and lock acquisition,
+      // force a retry so we always hold the correct platform-user lock.
+      throw new ProofConflictError("Proof changed during update. Please retry.");
+    }
+    if (
+      removed?.nonce &&
+      removed.nonce !== "legacy" &&
+      removed.nonce !== target?.nonce
+    ) {
+      throw new ProofConflictError("Proof changed during update. Please retry.");
+    }
+
     const filtered = existing.filter((p) => p.platform !== platform);
+    const previousCount = existing.length;
+    const nextCount = filtered.length;
 
     await writeWalletProofs(wallet, filtered);
 
@@ -329,13 +388,16 @@ export async function deleteProof(wallet: string, platform: Platform) {
 
     const identityRoot = computeIdentityRoot(filtered);
     const cardId = cardIdFromWallet(wallet);
+    await updateStats({ wallet, previousCount, nextCount });
 
     if (identityRoot) {
       await redis.set(rootKey(wallet), identityRoot);
       await redis.set(cardKey(cardId), wallet);
+      await redis.sadd(PROOF_WALLETS_INDEX_KEY, wallet);
     } else {
       await redis.del(rootKey(wallet));
       await redis.del(cardKey(cardId));
+      await redis.srem(PROOF_WALLETS_INDEX_KEY, wallet);
     }
 
     return { cardId, identityRoot };
@@ -346,10 +408,9 @@ export async function resolveWalletFromCardId(cardId: string): Promise<string | 
   const cached = await redis.get<string>(cardKey(cardId));
   if (cached) return cached;
 
-  // Backfill lookup for older rows.
-  const keys = (await redis.keys(`${PROOF_PREFIX}*`)) as string[];
-  for (const key of keys || []) {
-    const wallet = String(key).replace(PROOF_PREFIX, "");
+  // Backfill lookup from indexed wallets without Redis KEYS scans.
+  const wallets = (await redis.smembers<string[]>(PROOF_WALLETS_INDEX_KEY)) || [];
+  for (const wallet of wallets) {
     if (cardIdFromWallet(wallet) === cardId) {
       await redis.set(cardKey(cardId), wallet);
       return wallet;
@@ -357,5 +418,46 @@ export async function resolveWalletFromCardId(cardId: string): Promise<string | 
   }
 
   return null;
+}
+
+export async function getNetworkStats(): Promise<{
+  wallets: number;
+  proofs: number;
+  platforms: number;
+}> {
+  const [walletsRaw, proofsRaw] = await Promise.all([
+    redis.get<number | string>(STATS_WALLETS_KEY),
+    redis.get<number | string>(STATS_PROOFS_KEY),
+  ]);
+
+  const wallets = Number(walletsRaw || 0);
+  const proofs = Number(proofsRaw || 0);
+  const countersReady =
+    walletsRaw !== null &&
+    walletsRaw !== undefined &&
+    proofsRaw !== null &&
+    proofsRaw !== undefined;
+
+  if (!countersReady) {
+    const walletsFromIndex = (await redis.smembers<string[]>(PROOF_WALLETS_INDEX_KEY)) || [];
+    let proofCount = 0;
+    for (const wallet of walletsFromIndex) {
+      const rows = await readWalletProofs(wallet);
+      proofCount += rows.length;
+    }
+    await redis.set(STATS_WALLETS_KEY, walletsFromIndex.length);
+    await redis.set(STATS_PROOFS_KEY, proofCount);
+    return {
+      wallets: walletsFromIndex.length,
+      proofs: proofCount,
+      platforms: 3,
+    };
+  }
+
+  return {
+    wallets: Number.isFinite(wallets) && wallets > 0 ? wallets : 0,
+    proofs: Number.isFinite(proofs) && proofs > 0 ? proofs : 0,
+    platforms: 3,
+  };
 }
 

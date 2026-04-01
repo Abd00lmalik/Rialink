@@ -14,43 +14,13 @@ import { computeProofHash } from "@/lib/proof-hash";
 import { createBindingProof } from "@/lib/server/binding-proof";
 import { signProof } from "@/lib/server/proof-signing";
 import { consumeVerifiedSocialSession } from "@/lib/server/verification-session";
+import { toPublicProof } from "@/lib/server/public-proof";
+import { checkRateLimit, getRequestIp } from "@/lib/server/rate-limit";
+import { isValidWalletAddress } from "@/lib/server/wallet";
 
 export const runtime = "nodejs";
 
 const PLATFORMS = new Set<Platform>(["github", "discord", "farcaster"]);
-
-function toApiProof(proof: ProofRecord) {
-  return {
-    platform: proof.platform,
-    user_id: proof.userId,
-    userId: proof.userId,
-    username: proof.username,
-    full_name: proof.fullName,
-    fullName: proof.fullName,
-    verified: proof.verified,
-    verified_at: proof.verifiedAt,
-    verifiedAt: proof.verifiedAt,
-    issued_at: proof.issuedAt,
-    issuedAt: proof.issuedAt,
-    nonce: proof.nonce,
-    signature: proof.signature,
-    version: proof.version,
-    proof_hash: proof.proofHash,
-    proofHash: proof.proofHash,
-    proof_method: proof.proofMethod,
-    proofMethod: proof.proofMethod,
-    binding_proof: proof.bindingProof,
-    bindingProof: proof.bindingProof,
-    tx_signature: proof.txSignature || null,
-    txSignature: proof.txSignature || null,
-    repoCount: proof.repoCount,
-    commitCount: proof.commitCount,
-    followerCount: proof.followerCount,
-    serverCount: proof.serverCount,
-    pfpUrl: proof.pfpUrl,
-    accountCreatedAt: proof.accountCreatedAt,
-  };
-}
 
 function placeholderTxSignature(args: {
   wallet: string;
@@ -66,20 +36,43 @@ function placeholderTxSignature(args: {
 }
 
 export async function GET(req: NextRequest) {
+  const ip = getRequestIp(req);
+  const rate = await checkRateLimit({
+    key: `proof-read:${ip}`,
+    limit: 60,
+    windowSeconds: 60,
+  });
+  if (!rate.ok) {
+    return NextResponse.json(
+      { error: "Too many requests. Please retry shortly." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(rate.retryAfterSeconds || 60) },
+      }
+    );
+  }
+
   const wallet = String(req.nextUrl.searchParams.get("wallet") || "").trim();
   if (!wallet) return NextResponse.json({ proofs: [] });
+  if (!isValidWalletAddress(wallet)) {
+    return NextResponse.json({ error: "Invalid wallet address" }, { status: 400 });
+  }
 
   try {
     const proofs = await getProofs(wallet);
     const identityRoot = await getIdentityRoot(wallet);
     const cardId = cardIdFromWallet(wallet);
     return NextResponse.json({
-      proofs: proofs.map(toApiProof),
+      proofs: proofs.map((proof) => toPublicProof(proof, { includeProofHash: true })),
       identityRoot,
       cardId,
     });
-  } catch {
-    return NextResponse.json({ proofs: [] });
+  } catch (error) {
+    console.error("GET /api/proof failed", { wallet, error });
+    return NextResponse.json(
+      { error: "Could not load proofs for this wallet" },
+      { status: 500 }
+    );
   }
 }
 
@@ -95,6 +88,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { success: false, error: "Missing or invalid fields" },
         { status: 400 }
+      );
+    }
+    if (!isValidWalletAddress(wallet)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid wallet address" },
+        { status: 400 }
+      );
+    }
+
+    const ip = getRequestIp(req);
+    const rate = await checkRateLimit({
+      key: `proof-write:${ip}:${wallet}`,
+      limit: 12,
+      windowSeconds: 60,
+    });
+    if (!rate.ok) {
+      return NextResponse.json(
+        { success: false, error: "Too many proof requests. Please retry shortly." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rate.retryAfterSeconds || 60) },
+        }
       );
     }
 
@@ -200,7 +215,7 @@ export async function POST(req: NextRequest) {
     const saved = await saveProof(wallet, proof);
     return NextResponse.json({
       success: true,
-      proof: toApiProof(saved.proof),
+      proof: toPublicProof(saved.proof, { includeProofHash: true }),
       cardId: saved.cardId,
       identityRoot: saved.identityRoot,
     });
@@ -231,6 +246,28 @@ export async function DELETE(req: NextRequest) {
         { status: 400 }
       );
     }
+    if (!isValidWalletAddress(wallet)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid wallet address" },
+        { status: 400 }
+      );
+    }
+
+    const ip = getRequestIp(req);
+    const rate = await checkRateLimit({
+      key: `proof-delete:${ip}:${wallet}`,
+      limit: 12,
+      windowSeconds: 60,
+    });
+    if (!rate.ok) {
+      return NextResponse.json(
+        { success: false, error: "Too many proof requests. Please retry shortly." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rate.retryAfterSeconds || 60) },
+        }
+      );
+    }
 
     const verify = await verifyWalletProof(wallet, walletProof);
     if (!verify.ok) {
@@ -246,7 +283,13 @@ export async function DELETE(req: NextRequest) {
       cardId: result.cardId,
       identityRoot: result.identityRoot,
     });
-  } catch {
+  } catch (err) {
+    if (err instanceof ProofConflictError) {
+      return NextResponse.json(
+        { success: false, error: err.message },
+        { status: 409 }
+      );
+    }
     return NextResponse.json(
       { success: false, error: "Internal server error" },
       { status: 500 }

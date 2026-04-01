@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAppClient, viemConnector } from "@farcaster/auth-client";
 import { issueVerifiedSocialSession } from "@/lib/server/verification-session";
+import { isValidWalletAddress } from "@/lib/server/wallet";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,9 @@ export async function POST(req: NextRequest) {
 
     if (!wallet || !Number.isFinite(fid) || !message || !signature || !nonce || !domain) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+    if (!isValidWalletAddress(wallet)) {
+      return NextResponse.json({ error: "Invalid wallet address" }, { status: 400 });
     }
 
     const expectedDomain = new URL(

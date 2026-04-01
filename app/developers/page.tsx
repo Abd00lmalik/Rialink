@@ -1,6 +1,10 @@
+import { ApiPlayground } from "@/components/developers/ApiPlayground";
+
 const JS_QUICK_START = `import { verifyWallet } from "rialink-sdk";
 
-const result = await verifyWallet("WALLET_ADDRESS");
+const result = await verifyWallet(
+  "WALLET_ADDRESS"
+);
 
 if (result.valid) {
   // trusted user
@@ -8,14 +12,14 @@ if (result.valid) {
 
 const PYTHON_QUICK_START = `import requests
 r = requests.get(
-  'https://rialink.vercel.app/api/verify/WALLET_ADDRESS'
+  'https://rialink-two.vercel.app/api/verify/WALLET_ADDRESS'
 )
 identity = r.json()
 
 if identity['trustLevel'] == 'high':
     # grant access`;
 
-const CURL_QUICK_START = `curl https://rialink.vercel.app/api/verify/WALLET_ADDRESS`;
+const CURL_QUICK_START = `curl https://rialink-two.vercel.app/api/verify/WALLET_ADDRESS`;
 
 const POLICY_REQUEST = `POST /api/policy/check
 Content-Type: application/json
@@ -202,6 +206,11 @@ export default function DevelopersPage() {
         <h2 style={{ fontSize: "20px", letterSpacing: "-0.01em", marginBottom: "12px" }}>
           Quick Start
         </h2>
+        <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "12px" }}>
+          SDK source is in the <code>/sdk</code> folder. If you publish it as
+          <code> rialink-sdk</code>, this snippet works as-is. The default SDK base URL is
+          <code> https://rialink-two.vercel.app</code>.
+        </p>
         <div
           style={{
             display: "flex",
@@ -232,6 +241,8 @@ export default function DevelopersPage() {
           <CodePanel title="cURL" code={CURL_QUICK_START} />
         </div>
       </section>
+
+      <ApiPlayground />
 
       <section
         style={{

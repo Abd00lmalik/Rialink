@@ -22,8 +22,12 @@ function normalizeProofs(wallet: string, proofs: unknown[]): Proof[] {
 export class RialinkClient {
   baseUrl: string;
 
-  constructor(baseUrl = "https://your-api-domain.com") {
-    this.baseUrl = baseUrl.replace(/\/+$/, "");
+  constructor(baseUrl = "https://rialink-two.vercel.app") {
+    const normalizedBaseUrl = String(baseUrl || "").trim().replace(/\/+$/, "");
+    if (!normalizedBaseUrl) {
+      throw new Error("RialinkClient requires a valid baseUrl");
+    }
+    this.baseUrl = normalizedBaseUrl;
   }
 
   async verifyWallet(wallet: string): Promise<VerifyResponse> {

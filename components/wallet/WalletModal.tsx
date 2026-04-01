@@ -45,13 +45,14 @@ export function WalletModal() {
           </span>
           <button
             onClick={() => setVisible(false)}
+            aria-label="Close wallet modal"
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
               color: '#6B7299', fontSize: '20px', lineHeight: 1,
               padding: '4px',
             }}
           >
-            
+            x
           </button>
         </div>
 

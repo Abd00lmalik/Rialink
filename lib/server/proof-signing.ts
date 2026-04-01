@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 
 function getSigningSecret(): string {
-  const secret = process.env.PROOF_SIGNING_SECRET || process.env.POLICY_SIGNING_SECRET;
+  const secret = process.env.PROOF_SIGNING_SECRET;
   if (!secret) {
     throw new Error("Missing PROOF_SIGNING_SECRET");
   }
