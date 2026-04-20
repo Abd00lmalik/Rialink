@@ -11,7 +11,7 @@ It is built with:
 - Farcaster auth kit
 
 Live app:
-- `https://rialink-two.vercel.app`
+- `https://rialink.vercel.app`
 
 ---
 
