@@ -457,4 +457,276 @@ a { color: inherit; text-decoration: none; }
   .trace-plate:hover { transform: none; }
   .faq-answer { transition: none; }
   .pulse-dot { animation: none; }
+  .verify-progress-segment { transition: none !important; }
+}
+
+/* ============================================================
+   VERIFY WORKSPACE — quiet-luxury tool page
+   ============================================================ */
+
+/* --- Empty state (not connected) --- */
+.verify-empty-state {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  padding: 100px 24px 40px;
+}
+.verify-empty-card {
+  max-width: 400px; width: 100%;
+  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  border-radius: 20px; padding: 40px; text-align: center;
+}
+.verify-empty-icon {
+  width: 48px; height: 48px; border-radius: 14px;
+  background: var(--bg-elevated); border: 1px solid var(--border-default);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 20px;
+}
+
+/* --- Workspace layout --- */
+.verify-workspace {
+  max-width: 1120px; margin: 0 auto;
+  padding: 88px 24px 60px;
+}
+.verify-layout {
+  display: grid; grid-template-columns: 280px 1fr; gap: 24px; align-items: start;
+}
+
+/* --- Identity rail --- */
+.verify-rail {
+  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  border-radius: 16px; padding: 20px;
+  position: sticky; top: 72px;
+}
+.verify-divider {
+  height: 1px; background: var(--border-subtle); margin: 16px 0;
+}
+.verify-label {
+  font-size: 11px; font-weight: 500; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text-muted);
+}
+
+/* --- Ghost buttons (rail actions) --- */
+.verify-ghost-btn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  height: 36px; border-radius: 10px; font-size: 13px; font-weight: 500;
+  background: transparent; color: var(--text-secondary);
+  border: 1px solid var(--border-default); cursor: pointer;
+  font-family: inherit; transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+@media (hover: hover) {
+  .verify-ghost-btn:hover {
+    background: var(--bg-elevated); color: var(--text-primary);
+    border-color: var(--border-strong);
+  }
+}
+
+/* --- Mint button (single filled accent) --- */
+.verify-btn-mint {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 36px; padding: 0 16px; border-radius: 10px;
+  background: var(--accent); color: var(--accent-ink);
+  border: none; cursor: pointer; font-size: 13px; font-weight: 600;
+  font-family: inherit;
+  box-shadow: 0 6px 18px -8px rgba(62,235,220,0.4);
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+@media (hover: hover) {
+  .verify-btn-mint:hover { background: var(--accent-hover); transform: translateY(-1px); }
+}
+.verify-btn-mint:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* --- Ghost button (unselected platform connect) --- */
+.verify-btn-ghost {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 38px; padding: 0 16px; border-radius: 10px;
+  background: transparent; color: var(--text-secondary);
+  border: 1px solid var(--border-default); cursor: pointer;
+  font-family: inherit; font-size: 14px; font-weight: 500;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+@media (hover: hover) {
+  .verify-btn-ghost:hover {
+    background: var(--bg-elevated); color: var(--text-primary);
+    border-color: var(--border-strong);
+  }
+}
+
+/* --- Disconnect all (quiet text) --- */
+.verify-disconnect-text {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  height: 36px; border-radius: 10px; font-size: 13px; font-weight: 500;
+  background: transparent; color: var(--text-muted);
+  border: none; cursor: pointer; font-family: inherit;
+  transition: color 0.18s ease;
+}
+@media (hover: hover) {
+  .verify-disconnect-text:hover { color: #E8A0A0; }
+}
+
+/* --- Sign challenge slab --- */
+.verify-sign-slab {
+  margin-bottom: 16px; background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle); border-radius: 12px; padding: 14px;
+}
+
+/* --- Sign receipt (collapsed when signed) --- */
+.verify-sign-receipt {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 16px; padding: 8px 12px;
+  background: var(--bg-elevated); border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+}
+
+/* --- Platform card --- */
+.verify-platform-card {
+  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  border-radius: 16px; padding: 20px;
+  transition: transform 0.22s ease, border-color 0.22s ease;
+}
+@media (hover: hover) {
+  .verify-platform-card:hover {
+    transform: translateY(-1px);
+    border-color: var(--border-default);
+  }
+}
+
+/* --- Icon well (30% surface, platform icon) --- */
+.verify-icon-well {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+/* --- Role chip (30% surface) --- */
+.verify-role-chip {
+  font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 6px;
+  background: var(--bg-elevated); color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+}
+
+/* --- Status chips --- */
+.verify-status-chip-verified {
+  font-size: 12px; font-weight: 500; padding: 3px 8px; border-radius: 6px;
+  background: rgba(62,235,220,0.08); color: var(--accent);
+  border: 1px solid rgba(62,235,220,0.15);
+}
+.verify-status-chip-unverified {
+  font-size: 12px; font-weight: 500; padding: 3px 8px; border-radius: 6px;
+  background: var(--bg-elevated); color: var(--text-muted);
+  border: 1px solid var(--border-default);
+}
+.verify-status-chip-pending {
+  font-size: 12px; font-weight: 500; padding: 3px 8px; border-radius: 6px;
+  background: var(--warning-muted); color: var(--warning);
+  border: 1px solid rgba(251,191,36,0.2);
+}
+.verify-status-chip-error {
+  font-size: 12px; font-weight: 500; padding: 3px 8px; border-radius: 6px;
+  background: var(--error-muted); color: var(--error);
+  border: 1px solid rgba(248,113,113,0.2);
+}
+
+/* --- Verified receipt row --- */
+.verify-receipt {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px; background: var(--bg-elevated);
+  border-radius: 10px; border: 1px solid var(--border-subtle);
+}
+
+/* --- Action text (Refresh / Disconnect in receipt) --- */
+.verify-action-text {
+  font-size: 11px; color: var(--text-muted); background: none;
+  border: none; cursor: pointer; font-family: inherit;
+  display: flex; align-items: center; gap: 4px;
+  transition: color 0.18s ease;
+}
+@media (hover: hover) {
+  .verify-action-text:hover { color: var(--text-primary); }
+}
+
+/* --- Farcaster sign-in overrides --- */
+.verify-farcaster-mint {
+  border-radius: 10px; overflow: hidden;
+}
+.verify-farcaster-mint button,
+.verify-farcaster-mint [role="button"] {
+  background: var(--accent) !important;
+  color: var(--accent-ink) !important;
+  border: none !important;
+  font-weight: 600 !important;
+  box-shadow: 0 6px 18px -8px rgba(62,235,220,0.4) !important;
+}
+.verify-farcaster-ghost {
+  border-radius: 10px; overflow: hidden;
+}
+.verify-farcaster-ghost button,
+.verify-farcaster-ghost [role="button"] {
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+  border: 1px solid var(--border-default) !important;
+  font-weight: 500 !important;
+}
+@media (hover: hover) {
+  .verify-farcaster-ghost button:hover,
+  .verify-farcaster-ghost [role="button"]:hover {
+    background: var(--bg-elevated) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-strong) !important;
+  }
+}
+
+/* --- Public badge card --- */
+.verify-badge-card {
+  width: 340px; max-width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px; padding: 16px;
+}
+.verify-badge-network-chip {
+  background: var(--bg-surface); color: var(--text-muted);
+  border: 1px solid var(--border-default);
+  border-radius: 6px; padding: 2px 6px; font-size: 11px; font-weight: 500;
+}
+.verify-badge-check {
+  position: absolute; bottom: -4px; right: -4px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* --- Mobile: compact rail + stacked cards --- */
+@media (max-width: 900px) {
+  .verify-layout {
+    grid-template-columns: 1fr; gap: 16px;
+  }
+  .verify-rail {
+    position: static;
+    display: grid; grid-template-columns: auto 1fr auto;
+    gap: 12px; align-items: center;
+    padding: 14px 16px;
+  }
+  .verify-rail .verify-divider { display: none; }
+  .verify-rail > div:first-child {
+    text-align: left; margin: 0;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .verify-rail .verify-avatar { width: 36px !important; height: 36px !important; font-size: 14px !important; margin: 0 !important; }
+  .verify-rail > div:nth-child(3) {
+    /* identities section: hide on mobile compact */
+    display: none;
+  }
+  .verify-rail > div:nth-child(4) {
+    /* actions: show inline */
+    display: flex; gap: 6px; flex-direction: row; flex-wrap: wrap;
+  }
+  .verify-rail > div:nth-child(4) .verify-ghost-btn,
+  .verify-rail > div:nth-child(4) .verify-btn-mint,
+  .verify-rail > div:nth-child(4) .verify-disconnect-text {
+    height: 32px; font-size: 12px; padding: 0 10px;
+  }
+  .verify-rail > div:nth-child(4) .verify-disconnect-text { display: none; }
+  .verify-rail > div:last-child { display: none; }
+  .verify-badge-card { width: 100%; }
 }

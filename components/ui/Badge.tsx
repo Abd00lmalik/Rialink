@@ -7,9 +7,9 @@ interface BadgeProps {
 
 const BADGE_STYLES: Record<BadgeProps['variant'], { bg: string; border: string; color: string; text: string }> = {
   verified: {
-    bg: 'var(--success-muted)',
-    border: 'rgba(52,211,153,0.2)',
-    color: 'var(--success)',
+    bg: 'rgba(62,235,220,0.08)',
+    border: 'rgba(62,235,220,0.15)',
+    color: 'var(--accent)',
     text: ' Verified',
   },
   unverified: {
@@ -50,7 +50,7 @@ export function Badge({ variant, className = '' }: BadgeProps) {
     >
       {variant === 'verified' ? (
         <>
-          <span className="pulse-dot"></span>
+          <span className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor', display: 'inline-block', flexShrink: 0 }}></span>
           <span>Verified</span>
         </>
       ) : (
