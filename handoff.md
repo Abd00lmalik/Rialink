@@ -90,13 +90,22 @@
 - Events: `proof.created`, `proof.revoked`, `identity.updated`
 - Max 10 webhooks per wallet
 
-## What's Next
+### Feature 7: Cross-app reputation (DONE)
+- `lib/reputation-store.ts` — Redis storage for signals, 90-day TTL, weighted decay scoring
+- `app/api/identity/[wallet]/reputation/route.ts` — POST signal + GET aggregate
+- Schema: `rialink.reputation.v1`
+- Score: -100 to 100, weighted by recency
+- Signals expire after 90 days
+- Reputation included in identity endpoint when available
 
-1. **Feature 7: Cross-app reputation** — dApps submit reputation signals, aggregated score in identity
-2. **Wire webhooks into proof flow** — call `dispatchWebhooks()` when proofs are created/revoked
-3. **Wire reputation into identity endpoint** — add reputation score to `GET /api/identity/:wallet`
-4. **Update developers page** — add new endpoints to docs
-5. **Vercel env vars** — add anchor secrets for production anchoring
+### Webhooks wired into proof flow (DONE)
+- `lib/server/proof-storage.ts` — `saveProof()` dispatches `proof.created`, `deleteProof()` dispatches `proof.revoked`
+- Fire-and-forget, non-blocking
+
+### Developers page updated (DONE)
+- New sections: Identity Composability, Wallet-Native, Webhooks, Reputation, On-Chain Verifier
+- API reference table updated from 7 to 15 endpoints
+- Code snippets for all new features
 
 ## Key Architecture Decisions
 
@@ -158,9 +167,10 @@ rialink/
 │       └── ...
 ├── lib/
 │   ├── rialo-verify.ts              # Feature 1: on-chain verifier
+│   ├── reputation-store.ts          # Feature 7: cross-app reputation
 │   ├── server/
 │   │   ├── rialo-anchor.ts           # Anchor: memo tx + balance
-│   │   ├── proof-storage.ts          # Redis proof CRUD
+│   │   ├── proof-storage.ts          # Redis proof CRUD + webhook dispatch
 │   │   ├── webhook-signing.ts        # Feature 6: HMAC signing
 │   │   ├── webhook-dispatcher.ts     # Feature 6: dispatch + retries
 │   │   └── ...
@@ -193,14 +203,13 @@ rialink/
 
 ## Notes for Next Agent
 
-1. Read `implementation.md` for the full feature plan
-2. Feature 7 (reputation) is the last uncompleted feature
-3. All new API routes go in `app/api/`
-4. Use existing tokens from `globals.css` — do not introduce new colors
-5. The anchor wallet is funded on devnet — do not regenerate
-6. `@rialo/ts-cdk` must be in `serverComponentsExternalPackages` in `next.config.js`
-7. The verify page has a one-mint-button state machine — respect it
-8. Run `npx next build` before committing
-9. Git author: `Abdulmalik Abdulrashid <abdulmalikabdulrashid1@gmail.com>`
-10. Webhook dispatcher needs to be wired into proof CRUD (call `dispatchWebhooks()` on proof create/delete)
-11. SDK builds: `cd sdk && npm run build`
+1. Read `implementation.md` for the full feature plan — ALL 7 FEATURES COMPLETE
+2. All new API routes go in `app/api/`
+3. Use existing tokens from `globals.css` — do not introduce new colors
+4. The anchor wallet is funded on devnet — do not regenerate
+5. `@rialo/ts-cdk` must be in `serverComponentsExternalPackages` in `next.config.js`
+6. The verify page has a one-mint-button state machine — respect it
+7. Run `npx next build` before committing
+8. Git author: `Abdulmalik Abdulrashid <abdulmalikabdulrashid1@gmail.com>`
+9. SDK builds: `cd sdk && npm run build`
+10. Vercel env vars still needed for anchoring: `RIALINK_ANCHOR_SECRET`, `RIALO_RPC_URL`, `NEXT_PUBLIC_RIALO_EXPLORER_URL`

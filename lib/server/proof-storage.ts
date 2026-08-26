@@ -4,6 +4,7 @@ import type { Platform, ProofRecord } from "@/lib/types";
 import { cardIdFromWallet } from "@/lib/card-id";
 import { computeProofHash } from "@/lib/proof-hash";
 import { signProof } from "@/lib/server/proof-signing";
+import { deriveTrustLevelFromCount } from "@/lib/trust-level";
 
 const redis = Redis.fromEnv();
 const PROOF_PREFIX = "proofs:";
@@ -345,6 +346,21 @@ export async function saveProof(wallet: string, proof: ProofRecord) {
       await redis.del(rootKey(wallet));
     }
 
+    // Fire-and-forget: dispatch webhooks
+    try {
+      const { dispatchWebhooks } = await import("./webhook-dispatcher");
+      dispatchWebhooks(wallet, {
+        event: "proof.created",
+        wallet,
+        platform: proof.platform,
+        trustLevel: deriveTrustLevelFromCount(nextProofs.filter(p => p.verified !== false).length),
+        proofHash: proof.proofHash,
+        chain: proof.chain,
+        txSignature: proof.txSignature,
+        timestamp: new Date().toISOString(),
+      }).catch(() => {});
+    } catch {}
+
     return { proof, proofs: nextProofs, cardId, identityRoot };
   });
 }
@@ -434,6 +450,18 @@ export async function deleteProof(wallet: string, platform: Platform) {  const e
       await redis.del(cardKey(cardId));
       await redis.srem(PROOF_WALLETS_INDEX_KEY, wallet);
     }
+
+    // Fire-and-forget: dispatch webhooks for revocation
+    try {
+      const { dispatchWebhooks } = await import("./webhook-dispatcher");
+      dispatchWebhooks(wallet, {
+        event: "proof.revoked",
+        wallet,
+        platform,
+        trustLevel: deriveTrustLevelFromCount(filtered.filter(p => p.verified !== false).length),
+        timestamp: new Date().toISOString(),
+      }).catch(() => {});
+    } catch {}
 
     return { cardId, identityRoot };
   });

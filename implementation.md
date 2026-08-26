@@ -178,7 +178,7 @@ Notify subscribed apps when verification status changes.
 ---
 
 ### Feature 7: Cross-App Reputation
-**Status:** NOT STARTED
+**Status:** DONE
 **Effort:** 3-4 days
 **Priority:** 7 (network effects)
 
@@ -208,6 +208,8 @@ Week 4: Feature 7 (reputation) → Integration testing
 
 ## Current State (2026-08-26)
 
+All 7 features complete. Full build passes.
+
 - [x] Rialink core (verify, proofs, badges)
 - [x] Rialo anchoring on devnet
 - [x] Developers page rebuilt
@@ -216,5 +218,7 @@ Week 4: Feature 7 (reputation) → Integration testing
 - [x] Feature 3: Composability layer (app/api/identity/:wallet)
 - [x] Feature 4: Wallet-native verification (challenge + verify endpoints)
 - [x] Feature 5: Embeddable widget (public/embed.js)
-- [x] Feature 6: Webhook notifications (CRUD + dispatcher)
-- [ ] Feature 7: Cross-app reputation — NOT STARTED
+- [x] Feature 6: Webhook notifications (CRUD + dispatcher + HMAC signing)
+- [x] Feature 7: Cross-app reputation (reputation-store + endpoint)
+- [x] Webhooks wired into proof storage (saveProof + deleteProof)
+- [x] Developers page updated with all new endpoints

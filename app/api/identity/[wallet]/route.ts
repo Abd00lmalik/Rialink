@@ -18,6 +18,7 @@ import { withPublicCors, publicCorsOptions } from "@/lib/server/cors";
 import { deriveTrustLevelFromCount } from "@/lib/trust-level";
 import { isValidWalletAddress } from "@/lib/server/wallet";
 import { EXPLORER_URL } from "@/lib/constants";
+import { getAggregate } from "@/lib/reputation-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -223,6 +224,19 @@ export async function GET(
     lastVerifiedAt,
     queriedAt: new Date().toISOString(),
   };
+
+  // Attach reputation if available
+  try {
+    const rep = await getAggregate(wallet);
+    if (rep.totalSignals > 0) {
+      (response as any).reputation = {
+        score: rep.score,
+        totalSignals: rep.totalSignals,
+        activeSources: rep.activeSources,
+        topSignals: rep.topSignals,
+      };
+    }
+  } catch {}
 
   return withPublicCors(NextResponse.json(response), "GET, OPTIONS");
 }

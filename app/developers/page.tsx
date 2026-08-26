@@ -149,20 +149,144 @@ export async function checkAccess(wallet: string) {
 }`;
 
 const EMBED_SNIPPET = `<!-- Drop-in verification badge for any website -->
-<script type="module">
-  import { createBadge } from "https://rialink.vercel.app/embed.js";
-  createBadge(document.getElementById("badge"), {
+<div class="rialink-badge" data-wallet="BqKJkx...f3Ht" data-theme="dark"></div>
+<script src="https://rialink.vercel.app/embed.js" async></script>`;
+
+const IDENTITY_COMPOSABILITY_SNIPPET = `// GET /api/identity/:wallet
+// Structured identity for other Rialo protocols
+// CORS-enabled — any dApp can read this
+
+const res = await fetch(
+  "https://rialink.vercel.app/api/identity/BqKJkx...f3Ht"
+);
+const identity = await res.json();
+
+// Returns:
+// {
+//   schema: "rialink.identity.v1",
+//   wallet: "BqKJkx...f3Ht",
+//   trustLevel: "high",
+//   verifiedPlatforms: ["github", "discord", "farcaster"],
+//   totalVerified: 3,
+//   proofs: [...],
+//   identityRoot: "3f7a91c0...",
+//   accountAgeDays: 45,
+//   reputation: { score: 72, totalSignals: 12, ... }
+// }`;
+
+const WALLET_NATIVE_SNIPPET = `// Wallet-native verification — no OAuth redirects
+// User signs a message, we link their identity
+
+// Step 1: Get challenge
+const { nonce, message } = await fetch("/api/challenge/wallet-native", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ wallet: "BqKJkx...f3Ht" }),
+}).then(r => r.json());
+
+// Step 2: Sign with connected wallet (Phantom/Solflare)
+const { signature } = await wallet.signMessage(
+  new TextEncoder().encode(message)
+);
+
+// Step 3: Verify and link
+const result = await fetch("/api/verify/wallet-native", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ wallet, signature, message, nonce }),
+}).then(r => r.json());
+// { verified: true, method: "wallet-native", identityLinked: true }`;
+
+const WEBHOOK_SNIPPET = `// Webhooks — get notified when verification status changes
+// POST /api/webhooks — register a webhook
+const webhook = await fetch("/api/webhooks", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
     wallet: "BqKJkx...f3Ht",
-    theme: "dark",
-  });
-</script>
-<div id="badge"></div>`;
+    url: "https://your-app.com/webhook",
+    events: ["proof.created", "proof.revoked", "identity.updated"],
+  }),
+}).then(r => r.json());
+// { id: "wh_...", secret: "whsec_...", url: "...", events: [...] }
+
+// Verify incoming webhooks with HMAC-SHA256:
+// Header: X-Rialink-Signature: v1=<hex>,t=<timestamp>
+// Use webhook-signing.ts verifyWebhook() to validate`;
+
+const REPUTATION_SNIPPET = `// Cross-app reputation — dApps submit signals, aggregated into score
+// POST /api/identity/:wallet/reputation
+
+await fetch("/api/identity/BqKJkx...f3Ht/reputation", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    source: "my-dapp",           // your dApp identifier
+    signal: "trader_active",     // signal type
+    value: 0.8,                  // -1 to 1 (negative = bad rep)
+    metadata: { tradeCount: 42 },
+  }),
+});
+
+// GET /api/identity/:wallet/reputation
+const rep = await fetch(
+  "/api/identity/BqKJkx...f3Ht/reputation"
+).then(r => r.json());
+// { score: 72, totalSignals: 12, activeSources: [...], topSignals: [...] }
+
+// Reputation is also included in GET /api/identity/:wallet
+// when available — no extra call needed.`;
+
+const ON_CHAIN_VERIFIER_SNIPPET = `// On-chain verifier — verify trustlessly without calling Rialink API
+// Reads memo transactions directly from Rialo chain
+
+import { verifyOnChain } from "@rialink/sdk";
+
+const result = await verifyOnChain("BqKJkx...f3Ht");
+// { valid: true, trustLevel: "high", identityRoot: "...", explorerUrl: "..." }
+
+// Or verify the receipt independently:
+// 1. Fetch tx from Rialo RPC: getTransaction({ signature: "<txSignature>" })
+// 2. Decode instruction #0 data (base58) → UTF-8
+// 3. Expect: rialink:v1|create|<wallet>|<identityRoot>
+// 4. Recompute identityRoot from GET /api/verify/:wallet proofHashes
+// 5. Match = tamper-evident proof`;
 
 const API_ROWS = [
   {
     method: "GET",
     path: "/api/verify/[wallet]",
     description: "Public identity + trust level for a wallet",
+    auth: "None",
+  },
+  {
+    method: "GET",
+    path: "/api/identity/[wallet]",
+    description: "Structured identity (rialink.identity.v1 schema) for composability",
+    auth: "None",
+  },
+  {
+    method: "POST",
+    path: "/api/challenge/wallet-native",
+    description: "Issue a challenge for wallet-native verification",
+    auth: "None",
+  },
+  {
+    method: "POST",
+    path: "/api/verify/wallet-native",
+    description: "Verify wallet signature and link identity",
+    auth: "None",
+  },
+  {
+    method: "GET",
+    path: "/api/identity/[wallet]/reputation",
+    description: "Aggregated cross-app reputation score",
+    auth: "None",
+  },
+  {
+    method: "POST",
+    path: "/api/identity/[wallet]/reputation",
+    description: "Submit a reputation signal from a dApp",
     auth: "None",
   },
   {
@@ -188,6 +312,24 @@ const API_ROWS = [
     path: "/api/proof",
     description: "Save a verified proof (requires session token)",
     auth: "Session + wallet",
+  },
+  {
+    method: "GET",
+    path: "/api/webhooks?wallet=",
+    description: "List registered webhooks for a wallet",
+    auth: "None",
+  },
+  {
+    method: "POST",
+    path: "/api/webhooks",
+    description: "Register a webhook (returns shared secret)",
+    auth: "None",
+  },
+  {
+    method: "DELETE",
+    path: "/api/webhooks?wallet=&id=",
+    description: "Delete a webhook registration",
+    auth: "None",
   },
   {
     method: "GET",
@@ -438,6 +580,56 @@ export default function DevelopersPage() {
         </SectionTitle>
         <div style={{ display: "grid", gap: 12 }}>
           <CodePanel title="HTML" code={EMBED_SNIPPET} filename="index.html" />
+        </div>
+      </SectionCard>
+
+      {/* ─── Identity Composability ────────────────────────────── */}
+      <SectionCard>
+        <SectionTitle sub="Other Rialo protocols can read a wallet's Rialink identity. CORS-enabled, no auth required.">
+          Identity Composability Layer
+        </SectionTitle>
+        <div style={{ display: "grid", gap: 12 }}>
+          <CodePanel title="GET /api/identity/:wallet" code={IDENTITY_COMPOSABILITY_SNIPPET} filename="composability" />
+        </div>
+      </SectionCard>
+
+      {/* ─── Wallet-Native Verification ───────────────────────── */}
+      <SectionCard>
+        <SectionTitle sub="Users verify directly by signing a message with their connected wallet. No OAuth redirects.">
+          Wallet-Native Verification
+        </SectionTitle>
+        <div style={{ display: "grid", gap: 12 }}>
+          <CodePanel title="3-step flow" code={WALLET_NATIVE_SNIPPET} filename="wallet-native" />
+        </div>
+      </SectionCard>
+
+      {/* ─── Webhooks ─────────────────────────────────────────── */}
+      <SectionCard>
+        <SectionTitle sub="Get notified when verification status changes. HMAC-signed, auto-retrying.">
+          Webhook Notifications
+        </SectionTitle>
+        <div style={{ display: "grid", gap: 12 }}>
+          <CodePanel title="Register + verify" code={WEBHOOK_SNIPPET} filename="webhooks" />
+        </div>
+      </SectionCard>
+
+      {/* ─── Cross-App Reputation ─────────────────────────────── */}
+      <SectionCard>
+        <SectionTitle sub="dApps submit reputation signals, aggregated into a score. Feeds into identity composability.">
+          Cross-App Reputation
+        </SectionTitle>
+        <div style={{ display: "grid", gap: 12 }}>
+          <CodePanel title="Submit + read signals" code={REPUTATION_SNIPPET} filename="reputation" />
+        </div>
+      </SectionCard>
+
+      {/* ─── On-Chain Verifier ────────────────────────────────── */}
+      <SectionCard>
+        <SectionTitle sub="Verify trustlessly by reading memo transactions directly from Rialo chain.">
+          On-Chain Verifier
+        </SectionTitle>
+        <div style={{ display: "grid", gap: 12 }}>
+          <CodePanel title="SDK method" code={ON_CHAIN_VERIFIER_SNIPPET} filename="on-chain" />
         </div>
       </SectionCard>
 
