@@ -7,8 +7,7 @@ const DEFAULT_TRUSTED_DOMAINS = [
   "localhost:3000",
   "127.0.0.1",
   "127.0.0.1:3000",
-  "verifyme-two.vercel.app",
-  "rialink-two.vercel.app",
+  "rialink.vercel.app",
 ];
 
 function hostFromUrl(urlLike: string): string | null {

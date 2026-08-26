@@ -22,17 +22,26 @@ function Counter({ value }: { value: number }) {
 export function TrustBar() {
   const [stats, setStats] = useState<Stats>({ wallets: 0, proofs: 0, platforms: 3 });
   const [loaded, setLoaded] = useState(false);
+  const [ok, setOk] = useState(true);
 
   useEffect(() => {
     fetch("/api/stats")
-      .then(r => r.json())
-      .then(d => { setStats(d); setLoaded(true); })
-      .catch(() => setLoaded(true));
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (d && typeof d.wallets === "number" && typeof d.proofs === "number") {
+          setStats(d);
+          setOk(true);
+        } else {
+          setOk(false);
+        }
+        setLoaded(true);
+      })
+      .catch(() => { setOk(false); setLoaded(true); });
   }, []);
 
   const items = [
-    { label: "Verified Wallets", value: stats.wallets },
-    { label: "Proofs Issued", value: stats.proofs },
+    { label: "Verified Wallets", value: ok ? stats.wallets : null },
+    { label: "Proofs Issued", value: ok ? stats.proofs : null },
     { label: "Platforms Supported", value: stats.platforms },
   ];
 
@@ -42,7 +51,7 @@ export function TrustBar() {
         {items.map(({ label, value }) => (
           <div key={label}>
             <p style={{ fontSize: "32px", fontWeight: 700, letterSpacing: "-0.03em", color: "var(--text-primary)", marginBottom: "4px" }}>
-              {loaded ? <Counter value={value} /> : ""}
+              {!loaded ? "" : value === null ? "—" : <Counter value={value} />}
             </p>
             <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>{label}</p>
           </div>

@@ -34,18 +34,6 @@ function placeholderTxSignature(args: {
   return `offchain:${digest}`;
 }
 
-function maybeNumber(value: unknown): number | undefined {
-  if (value === undefined || value === null || value === "") return undefined;
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return undefined;
-  return numeric;
-}
-
-function isIsoTimestamp(value: unknown): boolean {
-  const ts = Date.parse(String(value || ""));
-  return Number.isFinite(ts);
-}
-
 function safeProofSignature(proofHash: string): string {
   try {
     return signProof(proofHash);
@@ -77,61 +65,6 @@ function fallbackBindingProof(args: {
     walletMessage: String(args.walletProof?.message || ""),
     token: "",
   };
-}
-
-function buildLegacyProof(wallet: string, platform: Platform, body: Record<string, unknown>) {
-  const verifiedAt = isIsoTimestamp(body.verifiedAt)
-    ? String(body.verifiedAt)
-    : new Date().toISOString();
-  const proofHash = String(body.proofHash || "").trim();
-  const usernameHash = String(body.usernameHash || "").trim();
-  const maskedUsername = String(body.maskedUsername || "").trim();
-  const providedUserId = String(body.userId || "").trim();
-  const userId =
-    providedUserId ||
-    usernameHash ||
-    `${platform}:legacy:${createHash("sha256")
-      .update(`${wallet}|${platform}|${proofHash}`)
-      .digest("hex")
-      .slice(0, 16)}`;
-  const username =
-    String(body.username || "").trim() || maskedUsername || `legacy-${userId.slice(0, 8)}`;
-  const fullName = String(body.fullName || body.full_name || "").trim();
-  const proofMethod = String(body.proofMethod || "legacy-client-payload");
-  const signature = safeProofSignature(proofHash);
-
-  const proof: ProofRecord = {
-    wallet,
-    platform,
-    userId,
-    username,
-    ...(fullName ? { fullName } : {}),
-    verified: true,
-    verifiedAt,
-    nonce: "legacy",
-    issuedAt: 0,
-    signature,
-    version: "v1",
-    proofMethod,
-    proofHash,
-    bindingProof: fallbackBindingProof({ verifiedAt, proofMethod }),
-    txSignature: placeholderTxSignature({ wallet, platform, proofHash, verifiedAt }),
-    ...(maybeNumber(body.repoCount) !== undefined ? { repoCount: maybeNumber(body.repoCount) } : {}),
-    ...(maybeNumber(body.commitCount) !== undefined
-      ? { commitCount: maybeNumber(body.commitCount) }
-      : {}),
-    ...(maybeNumber(body.followerCount) !== undefined
-      ? { followerCount: maybeNumber(body.followerCount) }
-      : {}),
-    ...(maybeNumber(body.serverCount) !== undefined
-      ? { serverCount: maybeNumber(body.serverCount) }
-      : {}),
-    ...(body.pfpUrl ? { pfpUrl: String(body.pfpUrl) } : {}),
-    ...(body.accountCreatedAt ? { accountCreatedAt: String(body.accountCreatedAt) } : {}),
-    ...(usernameHash ? { usernameHash } : {}),
-    ...(maskedUsername ? { maskedUsername } : {}),
-  };
-  return proof;
 }
 
 export async function GET(req: NextRequest) {
@@ -190,7 +123,6 @@ export async function POST(req: NextRequest) {
           wallet?: string;
         }
       | undefined;
-    const legacyProofHash = String(body.proofHash || "").trim();
 
     if (!wallet || !PLATFORMS.has(platform)) {
       return NextResponse.json(
@@ -201,6 +133,28 @@ export async function POST(req: NextRequest) {
     if (!isValidWalletAddress(wallet)) {
       return NextResponse.json(
         { success: false, error: "Invalid wallet address" },
+        { status: 400 }
+      );
+    }
+    // Every proof creation requires a fresh server-issued verification session
+    // bound to this wallet+platform, plus a valid wallet signature.
+    if (!verificationToken) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "missing_verification_token",
+          message: "Reconnect the platform to obtain a verification session.",
+        },
+        { status: 400 }
+      );
+    }
+    if (!walletProof) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "missing_wallet_proof",
+          message: "Sign the wallet ownership message to finish verification.",
+        },
         { status: 400 }
       );
     }
@@ -337,18 +291,16 @@ export async function POST(req: NextRequest) {
           : {}),
       };
     } else {
-      // Backward compatibility: accept legacy frontend payload shape.
-      if (!legacyProofHash) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Missing or invalid fields",
-            message: "Expected verificationToken or proofHash",
-          },
-          { status: 400 }
-        );
-      }
-      proof = buildLegacyProof(wallet, platform, body);
+      // Legacy client payloads are rejected: every proof must originate from a
+      // server-issued verification session bound to wallet+platform.
+      return NextResponse.json(
+        {
+          success: false,
+          error: "missing_verification_token",
+          message: "Expected verificationToken and walletProof.",
+        },
+        { status: 400 }
+      );
     }
 
     const saved = await saveProof(wallet, proof);
@@ -393,6 +345,14 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
+    // Deleting a proof requires proof of wallet ownership.
+    if (!walletProof) {
+      return NextResponse.json(
+        { success: false, error: "missing_wallet_proof" },
+        { status: 400 }
+      );
+    }
+
     const ip = getRequestIp(req);
     const rate = await checkRateLimit({
       key: `proof-delete:${ip}:${wallet}`,
@@ -408,16 +368,12 @@ export async function DELETE(req: NextRequest) {
         }
       );
     }
-
-    // Backward compatibility: legacy clients delete without walletProof.
-    if (walletProof) {
-      const verify = await verifyWalletProof(wallet, walletProof as any);
-      if (!verify.ok) {
-        return NextResponse.json(
-          { success: false, error: verify.error },
-          { status: 401 }
-        );
-      }
+    const verify = await verifyWalletProof(wallet, walletProof as any);
+    if (!verify.ok) {
+      return NextResponse.json(
+        { success: false, error: verify.error },
+        { status: 401 }
+      );
     }
 
     const result = await deleteProof(wallet, platform);

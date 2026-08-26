@@ -1,25 +1,24 @@
 import { ApiPlayground } from "@/components/developers/ApiPlayground";
 
-const JS_QUICK_START = `import { verifyWallet } from "rialink-sdk";
-
-const result = await verifyWallet(
-  "WALLET_ADDRESS"
+const JS_QUICK_START = `const res = await fetch(
+  "https://rialink.vercel.app/api/verify/WALLET_ADDRESS"
 );
+const identity = await res.json();
 
-if (result.valid) {
-  // trusted user
+if (identity.valid && identity.trustLevel === "high") {
+  // wallet is verified on 3 platforms
 }`;
 
 const PYTHON_QUICK_START = `import requests
 r = requests.get(
-  'https://rialink-two.vercel.app/api/verify/WALLET_ADDRESS'
+  'https://rialink.vercel.app/api/verify/WALLET_ADDRESS'
 )
 identity = r.json()
 
 if identity['trustLevel'] == 'high':
     # grant access`;
 
-const CURL_QUICK_START = `curl https://rialink-two.vercel.app/api/verify/WALLET_ADDRESS`;
+const CURL_QUICK_START = `curl https://rialink.vercel.app/api/verify/WALLET_ADDRESS`;
 
 const POLICY_REQUEST = `POST /api/policy/check
 Content-Type: application/json
@@ -207,9 +206,9 @@ export default function DevelopersPage() {
           Quick Start
         </h2>
         <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "12px" }}>
-          SDK source is in the <code>/sdk</code> folder. If you publish it as
-          <code> rialink-sdk</code>, this snippet works as-is. The default SDK base URL is
-          <code> https://rialink-two.vercel.app</code>.
+          Use the REST API directly from any runtime. The typed helper in the
+          repo&apos;s <code>/sdk</code> folder wraps the same endpoints. Base URL:
+          <code> https://rialink.vercel.app</code>.
         </p>
         <div
           style={{

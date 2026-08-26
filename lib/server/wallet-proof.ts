@@ -9,6 +9,11 @@ import { isAllowedProofDomain } from "@/lib/server/domain-allowlist";
 const redis = Redis.fromEnv();
 const CHALLENGE_TTL_SECONDS = 10 * 60;
 
+interface StoredChallenge {
+  nonce: string;
+  issuedAt: string;
+}
+
 function challengeKey(wallet: string) {
   return `challenge:${wallet}`;
 }
@@ -25,7 +30,8 @@ function extractDomainFromWalletMessage(message: string): string | null {
 export async function issueWalletChallenge(wallet: string) {
   const nonce = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
   const issuedAt = new Date().toISOString();
-  await redis.set(challengeKey(wallet), nonce, { ex: CHALLENGE_TTL_SECONDS });
+  const challenge: StoredChallenge = { nonce, issuedAt };
+  await redis.set(challengeKey(wallet), challenge, { ex: CHALLENGE_TTL_SECONDS });
   return { nonce, issuedAt };
 }
 
@@ -40,8 +46,21 @@ export async function verifyWalletProof(wallet: string, proof: WalletProofPayloa
     return { ok: false, error: "Wallet proof issuedAt is invalid" };
   }
 
-  const expected = await redis.get<string>(challengeKey(wallet));
-  if (!expected || expected !== proof.nonce) {
+  const stored = await redis.get<StoredChallenge | string>(challengeKey(wallet));
+  const expectedNonce = typeof stored === "string" ? stored : stored?.nonce;
+  const expectedIssuedAt = typeof stored === "string" ? undefined : stored?.issuedAt;
+  if (!expectedNonce || expectedNonce !== proof.nonce) {
+    return { ok: false, error: "Wallet proof expired or invalid" };
+  }
+  if (expectedIssuedAt && expectedIssuedAt !== proof.issuedAt) {
+    return { ok: false, error: "Wallet proof expired or invalid" };
+  }
+
+  // Hard freshness window: the signature is only accepted within the original
+  // challenge TTL. No sliding renewal, so a captured message/signature pair
+  // cannot be replayed indefinitely.
+  const ageMs = Date.now() - Date.parse(proof.issuedAt);
+  if (!Number.isFinite(ageMs) || ageMs < 0 || ageMs > CHALLENGE_TTL_SECONDS * 1000) {
     return { ok: false, error: "Wallet proof expired or invalid" };
   }
 
@@ -72,7 +91,6 @@ export async function verifyWalletProof(wallet: string, proof: WalletProofPayloa
     return { ok: false, error: "Invalid wallet signature" };
   }
 
-  // Keep the challenge active for a short session window to avoid re-signing every action
-  await redis.set(challengeKey(wallet), proof.nonce, { ex: CHALLENGE_TTL_SECONDS });
+  // Challenge expires on its original TTL — do not renew it here.
   return { ok: true };
 }

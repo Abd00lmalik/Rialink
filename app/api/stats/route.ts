@@ -33,8 +33,13 @@ export async function GET(req: NextRequest) {
     const stats = await getNetworkStats();
     return withPublicCors(NextResponse.json(stats), "GET, OPTIONS");
   } catch {
+    // Never fabricate numbers to hide an outage.
+    console.error("GET /api/stats failed");
     return withPublicCors(
-      NextResponse.json({ wallets: 0, proofs: 0, platforms: 3 }),
+      NextResponse.json(
+        { error: "Stats temporarily unavailable" },
+        { status: 503, headers: { "Retry-After": "30" } }
+      ),
       "GET, OPTIONS"
     );
   }

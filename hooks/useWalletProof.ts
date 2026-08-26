@@ -6,6 +6,9 @@ import bs58 from "bs58";
 import { buildWalletProofMessage, WalletProofPayload } from "@/lib/wallet-proof";
 
 const STORAGE_PREFIX = "rialink_wallet_proof_";
+// Signatures are only valid server-side for the challenge TTL (10 minutes).
+// Treat cached proofs older than that as stale so the wallet re-signs silently.
+const MAX_PROOF_AGE_MS = 9 * 60 * 1000;
 
 export function getStoredWalletProof(wallet: string): WalletProofPayload | null {
   if (typeof window === "undefined") return null;
@@ -14,6 +17,11 @@ export function getStoredWalletProof(wallet: string): WalletProofPayload | null 
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed?.signature || !parsed?.message) return null;
+    const issuedAtMs = Date.parse(parsed.issuedAt);
+    if (!Number.isFinite(issuedAtMs) || Date.now() - issuedAtMs > MAX_PROOF_AGE_MS) {
+      localStorage.removeItem(STORAGE_PREFIX + wallet);
+      return null;
+    }
     return parsed as WalletProofPayload;
   } catch {
     return null;
