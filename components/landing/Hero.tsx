@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { RialCard } from "@/components/landing/RialCard";
 
@@ -36,59 +36,10 @@ function HeroStats() {
 }
 
 export function Hero() {
-  const sectionRef = useRef<HTMLElement>(null);
-  const glowRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const section = sectionRef.current;
-    const glow = glowRef.current;
-    if (!section || !glow) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    if (window.matchMedia("(pointer: coarse)").matches) return;
-
-    let tx = window.innerWidth * 0.62;
-    let ty = 220;
-    let x = tx;
-    let y = ty;
-    let raf = 0;
-
-    const tick = () => {
-      x += (tx - x) * 0.08;
-      y += (ty - y) * 0.08;
-      glow.style.transform = `translate(${x}px, ${y}px)`;
-      if (Math.abs(tx - x) > 0.3 || Math.abs(ty - y) > 0.3) {
-        raf = requestAnimationFrame(tick);
-      } else {
-        raf = 0;
-      }
-    };
-    const start = () => {
-      if (!raf) raf = requestAnimationFrame(tick);
-    };
-
-    const onMove = (e: PointerEvent) => {
-      const r = section.getBoundingClientRect();
-      tx = e.clientX - r.left;
-      ty = e.clientY - r.top;
-      start();
-    };
-
-    section.addEventListener("pointermove", onMove);
-    return () => {
-      section.removeEventListener("pointermove", onMove);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, []);
-
   return (
     <section
-      ref={sectionRef}
       style={{ position: "relative", paddingTop: "clamp(120px, 16vh, 168px)", paddingBottom: "clamp(72px, 9vh, 120px)" }}
     >
-      <div className="hero-spotlight" aria-hidden>
-        <div ref={glowRef} className="glow" />
-      </div>
-
       <div
         style={{
           maxWidth: 1160,
