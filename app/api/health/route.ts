@@ -51,12 +51,13 @@ export async function GET() {
       const redis = new Redis({ url: url.trim(), token: token.trim() });
       const probe = `health:${Date.now()}`;
       await redis.set(probe, "1", { ex: 30 });
-      redisOk = (await redis.get(probe)) === "1";
+      const got = await redis.get(probe);
       await redis.del(probe);
+      redisOk = String(got) === "1";
       if (redisOk) {
         redisDetail = `connected: ${host}`;
       } else {
-        redisDetail = `roundtrip_failed: ${host} responded but set/get did not verify`;
+        redisDetail = `roundtrip_failed: ${host} responded; get returned ${JSON.stringify(got) ?? "undefined"} (${typeof got})`;
       }
     } catch (error) {
       redisDetail = `${host} -> ${classifyRedisFailure(error)}`;
