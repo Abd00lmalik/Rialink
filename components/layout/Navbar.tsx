@@ -31,9 +31,9 @@ export function Navbar() {
         left: 0,
         right: 0,
         height: '56px',
-        background: 'rgba(10, 11, 15, 0.85)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
+        background: 'rgba(7, 9, 13, 0.82)',
+        backdropFilter: 'blur(14px)',
+        WebkitBackdropFilter: 'blur(14px)',
         borderBottom: '1px solid var(--border-subtle)',
         zIndex: 50,
         display: 'flex',
@@ -66,16 +66,16 @@ export function Navbar() {
           </span>
           <span
             style={{
-              background: 'var(--accent-muted)',
-              color: 'var(--accent-text)',
-              border: '1px solid rgba(92,225,230,0.15)',
+              background: 'var(--bg-surface)',
+              color: 'var(--text-muted)',
+              border: '1px solid var(--border-default)',
               borderRadius: '6px',
               padding: '2px 7px',
               fontSize: '11px',
               fontWeight: 500,
             }}
           >
-            BetaPhase
+            Beta
           </span>
         </Link>
 
@@ -107,14 +107,15 @@ export function Navbar() {
               height: '38px',
               padding: '0 16px',
               borderRadius: '10px',
-              background: 'var(--accent)',
-              color: 'var(--text-inverse)',
+              background: 'transparent',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border-default)',
               fontSize: '14px',
               fontWeight: 500,
-              transition: 'background 0.12s ease',
+              transition: 'background 0.2s ease, color 0.2s ease, border-color 0.2s ease',
               letterSpacing: '-0.01em',
             }}
-            className="btn-primary"
+            className="btn-quiet nav-cta"
           >
             Get Verified
           </Link>
