@@ -162,6 +162,8 @@ function normalizeProofRecord(value: unknown, walletFromKey?: string): ProofReco
       ...bindingProof,
     },
     ...(row.txSignature ? { txSignature: String(row.txSignature) } : {}),
+    ...(row.chain ? { chain: String(row.chain) } : {}),
+    ...(row.anchoredAt ? { anchoredAt: String(row.anchoredAt) } : {}),
     ...(row.repoCount !== undefined ? { repoCount: Number(row.repoCount) || 0 } : {}),
     ...(row.commitCount !== undefined ? { commitCount: Number(row.commitCount) || 0 } : {}),
     ...(row.followerCount !== undefined ? { followerCount: Number(row.followerCount) || 0 } : {}),
@@ -347,8 +349,31 @@ export async function saveProof(wallet: string, proof: ProofRecord) {
   });
 }
 
-export async function deleteProof(wallet: string, platform: Platform) {
-  const existing = await readWalletProofs(wallet);
+/**
+ * Attaches anchoring metadata to a single platform proof after the identity
+ * root has been published on-chain. Metadata-only update: verification
+ * fields are untouched.
+ */
+export async function setProofAnchor(
+  wallet: string,
+  platform: Platform,
+  anchor: { chain: string; txSignature: string; anchoredAt: string }
+): Promise<ProofRecord | null> {
+  return withLocks([walletLockKey(wallet)], async () => {
+    const proofs = await readWalletProofs(wallet);
+    let updated: ProofRecord | null = null;
+    const next = proofs.map((p) => {
+      if (p.platform !== platform) return p;
+      updated = { ...p, ...anchor };
+      return updated;
+    });
+    if (!updated) return null;
+    await writeWalletProofs(wallet, next);
+    return updated;
+  });
+}
+
+export async function deleteProof(wallet: string, platform: Platform) {  const existing = await readWalletProofs(wallet);
   const target = existing.find((p) => p.platform === platform);
   const locks = [walletLockKey(wallet)];
   if (target?.userId) {

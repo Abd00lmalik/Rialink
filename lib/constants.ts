@@ -50,7 +50,7 @@ export const PLATFORM_CONFIG: Record<Platform, PlatformConfig> = {
 export const CONTRACT_ADDRESS =
   process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || 'PLACEHOLDER_RIALO_CONTRACT';
 export const EXPLORER_URL =
-  process.env.NEXT_PUBLIC_RIALO_EXPLORER_URL || 'https://explorer.rialo.io';
+process.env.NEXT_PUBLIC_RIALO_EXPLORER_URL || 'https://testnet.rialoscan.org';
 export const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 

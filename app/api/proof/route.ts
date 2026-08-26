@@ -6,6 +6,7 @@ import {
   getProofs,
   getIdentityRoot,
   deleteProof,
+  setProofAnchor,
   ProofConflictError,
 } from "@/lib/server/proof-storage";
 import { verifyWalletProof } from "@/lib/server/wallet-proof";
@@ -16,6 +17,10 @@ import { signProof } from "@/lib/server/proof-signing";
 import { consumeVerifiedSocialSession } from "@/lib/server/verification-session";
 import { checkRateLimit, getRequestIp } from "@/lib/server/rate-limit";
 import { isValidWalletAddress } from "@/lib/server/wallet";
+import {
+  anchorIdentityRoot,
+  isAnchorConfigured,
+} from "@/lib/server/rialo-anchor";
 
 export const runtime = "nodejs";
 
@@ -27,6 +32,9 @@ function placeholderTxSignature(args: {
   proofHash: string;
   verifiedAt: string;
 }) {
+  // Honest fallback used only when Rialo anchoring is not configured or the
+  // chain submission failed. The "offchain:" prefix makes it unmistakable
+  // that this record has no on-chain receipt.
   const digest = createHash("sha256")
     .update(`${args.wallet}|${args.platform}|${args.proofHash}|${args.verifiedAt}`)
     .digest("hex")
@@ -304,9 +312,27 @@ export async function POST(req: NextRequest) {
     }
 
     const saved = await saveProof(wallet, proof);
+
+    // Publish the new identity root on Rialo (best-effort). Verification is
+    // already committed; anchoring adds the public tamper-evident receipt.
+    let finalProof = saved.proof;
+    if (isAnchorConfigured() && saved.identityRoot) {
+      try {
+        const receipt = await anchorIdentityRoot({
+          action: "create",
+          wallet,
+          identityRoot: saved.identityRoot,
+        });
+        const anchored = await setProofAnchor(wallet, platform, receipt);
+        if (anchored) finalProof = anchored;
+      } catch (anchorError) {
+        console.error("POST /api/proof anchoring failed (proof saved off-chain)", anchorError);
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      proof: saved.proof,
+      proof: finalProof,
       cardId: saved.cardId,
       identityRoot: saved.identityRoot,
     });
@@ -377,10 +403,28 @@ export async function DELETE(req: NextRequest) {
     }
 
     const result = await deleteProof(wallet, platform);
+
+    // Attest the revocation on-chain (best-effort) whenever proofs remain,
+    // so removals are publicly verifiable like creations.
+    let revokeTxSignature: string | undefined;
+    if (result.identityRoot && isAnchorConfigured()) {
+      try {
+        const receipt = await anchorIdentityRoot({
+          action: "revoke",
+          wallet,
+          identityRoot: result.identityRoot,
+        });
+        revokeTxSignature = receipt.txSignature;
+      } catch (anchorError) {
+        console.error("DELETE /api/proof anchoring failed", anchorError);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       cardId: result.cardId,
       identityRoot: result.identityRoot,
+      ...(revokeTxSignature ? { revokeTxSignature } : {}),
     });
   } catch (err) {
     if (err instanceof ProofConflictError) {

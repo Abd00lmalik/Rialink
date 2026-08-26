@@ -35,6 +35,10 @@ export interface ProofRecord {
   proofHash: string;
   bindingProof: BindingProofRecord;
   txSignature?: string;
+  // Rialo anchoring metadata. Present only when the proof change was
+  // anchored on-chain; absence means the record lives off-chain only.
+  chain?: string;
+  anchoredAt?: string;
   repoCount?: number;
   commitCount?: number;
   followerCount?: number;

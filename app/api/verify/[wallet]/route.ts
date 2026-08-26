@@ -7,6 +7,7 @@ import { verifyStoredProof } from "@/lib/server/verify-proof";
 import { withPublicCors, publicCorsOptions } from "@/lib/server/cors";
 import { deriveTrustLevelFromCount } from "@/lib/trust-level";
 import { isValidWalletAddress } from "@/lib/server/wallet";
+import { EXPLORER_URL } from "@/lib/constants";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,6 +28,9 @@ interface StoredProofRow {
   verifiedAt: string;
   verified: boolean;
   pfpUrl?: string;
+  txSignature?: string;
+  chain?: string;
+  anchoredAt?: string;
   repoCount?: number;
   commitCount?: number;
   followerCount?: number;
@@ -95,6 +99,9 @@ function normalizeProofRow(row: unknown, walletFromKey?: string): StoredProofRow
   }
   const verifiedAt = String(obj.verifiedAt || obj.verified_at || "").trim();
   const pfpUrl = String(obj.pfpUrl || obj.pfp_url || "").trim();
+  const txSignature = String(obj.txSignature || "").trim();
+  const chain = String(obj.chain || "").trim();
+  const anchoredAt = String(obj.anchoredAt || "").trim();
 
   return {
     wallet,
@@ -110,6 +117,9 @@ function normalizeProofRow(row: unknown, walletFromKey?: string): StoredProofRow
     verifiedAt,
     verified: obj.verified !== false,
     ...(pfpUrl ? { pfpUrl } : {}),
+    ...(txSignature ? { txSignature } : {}),
+    ...(chain ? { chain } : {}),
+    ...(anchoredAt ? { anchoredAt } : {}),
     ...(toNumberOrUndefined(obj.repoCount) !== undefined
       ? { repoCount: toNumberOrUndefined(obj.repoCount) }
       : {}),
@@ -216,6 +226,9 @@ export async function GET(
   );
   const totalVerified = verifiedPlatforms.length;
   const trustLevel = deriveTrustLevelFromCount(totalVerified);
+  const anchoredCount = proofs.filter(
+    (proof) => proof.chain && !String(proof.txSignature || "").startsWith("offchain:")
+  ).length;
 
   const response = NextResponse.json({
     wallet,
@@ -223,6 +236,7 @@ export async function GET(
     trustLevel,
     verifiedPlatforms,
     totalVerified,
+    anchoredProofs: anchoredCount,
     maxPossible: MAX_POSSIBLE,
     proofs: proofs.map((proof) => ({
       platform: proof.platform,
@@ -239,6 +253,15 @@ export async function GET(
       issued_at: proof.issuedAt,
       version: proof.version,
       verifiedAt: proof.verifiedAt,
+      // On-chain anchoring receipt (absent = off-chain record only).
+      ...(proof.chain && proof.txSignature
+        ? {
+            chain: proof.chain,
+            txSignature: proof.txSignature,
+            explorerUrl: `${EXPLORER_URL}/tx/${proof.txSignature}`,
+            ...(proof.anchoredAt ? { anchoredAt: proof.anchoredAt } : {}),
+          }
+        : {}),
       ...(proof.repoCount !== undefined ? { repoCount: proof.repoCount } : {}),
       ...(proof.commitCount !== undefined ? { commitCount: proof.commitCount } : {}),
       ...(proof.followerCount !== undefined

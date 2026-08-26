@@ -7,11 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "anchor:keygen": "node scripts/anchor-keygen.mjs",
+    "anchor:selftest": "node scripts/anchor-selftest.mjs"
   },
   "dependencies": {
-    "@farcaster/auth-kit": "^0.5.0",
     "@farcaster/auth-client": "^0.5.0",
+    "@farcaster/auth-kit": "^0.5.0",
+    "@rialo/ts-cdk": "^0.18.1",
     "@solana/wallet-adapter-backpack": "^0.1.14",
     "@solana/wallet-adapter-base": "^0.9.23",
     "@solana/wallet-adapter-phantom": "^0.9.28",
@@ -41,4 +44,3 @@
     "typescript": "^5"
   }
 }
-
