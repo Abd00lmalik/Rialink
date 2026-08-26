@@ -2,7 +2,7 @@
 //   balance -> anchor-format memo tx -> chain read-back -> decode -> roundtrip
 //
 // Usage:
-//   RIALINK_ANCHOR_SECRET=<base58 seed> RIALO_RPC_URL=https://testnet.rialo.io:4101 \
+//   RIALINK_ANCHOR_SECRET=<base58 seed> RIALO_RPC_URL=https://devnet.rialo.io:4101 \
 //   node scripts/anchor-selftest.mjs [wallet] [identityRootHex]
 import bs58 from "bs58";
 import {
@@ -10,10 +10,10 @@ import {
   PublicKey,
   TransactionBuilder,
   createRialoClient,
-  RIALO_TESTNET_CHAIN,
+  RIALO_DEVNET_CHAIN,
 } from "@rialo/ts-cdk";
 
-const RPC_URL = process.env.RIALO_RPC_URL || "https://testnet.rialo.io:4101";
+const RPC_URL = process.env.RIALO_RPC_URL || "https://devnet.rialo.io:4101";
 const MEMO_PROGRAM_ADDRESS = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
 const WALLET = process.argv[2] || "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";
 const ROOT = process.argv[3] || "a".repeat(64);
@@ -53,9 +53,9 @@ async function main() {
   console.log("anchor address:", address);
 
   const chain =
-    RPC_URL === RIALO_TESTNET_CHAIN.rpcUrl
-      ? RIALO_TESTNET_CHAIN
-      : { ...RIALO_TESTNET_CHAIN, rpcUrl: RPC_URL };
+    RPC_URL === RIALO_DEVNET_CHAIN.rpcUrl
+      ? RIALO_DEVNET_CHAIN
+      : { ...RIALO_DEVNET_CHAIN, rpcUrl: RPC_URL };
   const client = createRialoClient({ chain });
 
   const balance = await client.getBalance(signer.publicKey);

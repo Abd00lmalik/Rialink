@@ -4,12 +4,12 @@ import {
   PublicKey,
   TransactionBuilder,
   createRialoClient,
-  RIALO_TESTNET_CHAIN,
+  RIALO_DEVNET_CHAIN,
 } from "@rialo/ts-cdk";
 
-export const DEFAULT_RIALO_RPC_URL = "https://testnet.rialo.io:4101";
-export const ANCHOR_CHAIN_ID = "rialo-testnet";
-export const EXPLORER_TX_BASE_URL = "https://testnet.rialoscan.org";
+export const DEFAULT_RIALO_RPC_URL = "https://devnet.rialo.io:4101";
+export const ANCHOR_CHAIN_ID = "rialo-devnet";
+export const EXPLORER_TX_BASE_URL = "https://devnet.rialoscan.org";
 // SPL Memo program address (same address as Solana's memo program).
 const MEMO_PROGRAM_ADDRESS = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
 
@@ -61,9 +61,9 @@ export function getAnchorAddress(): string | null {
 function createClient() {
   const rpcUrl = getAnchorRpcUrl();
   const chain =
-    rpcUrl === RIALO_TESTNET_CHAIN.rpcUrl
-      ? RIALO_TESTNET_CHAIN
-      : { ...RIALO_TESTNET_CHAIN, rpcUrl };
+    rpcUrl === RIALO_DEVNET_CHAIN.rpcUrl
+      ? RIALO_DEVNET_CHAIN
+      : { ...RIALO_DEVNET_CHAIN, rpcUrl };
   return createRialoClient({ chain });
 }
 

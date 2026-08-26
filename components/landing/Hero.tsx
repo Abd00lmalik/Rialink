@@ -58,7 +58,7 @@ export function Hero() {
         <div>
           <span className="chip-secondary" style={{ marginBottom: 28 }}>
             <span className="pulse-dot" aria-hidden style={{ width: 5, height: 5, borderRadius: 999, background: "var(--accent)", display: "inline-block" }} />
-            Public beta · Rialo testnet
+            Public beta · Rialo devnet
           </span>
 
           <h1

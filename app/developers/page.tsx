@@ -66,7 +66,7 @@ identityRoot = sha256("rialink:root:v1|" + proofHashes.join("|"))
 // proofHash itself is returned by GET /api/verify/[wallet],
 // so the whole computation is reproducible without trusting us.`;
 
-const VERIFY_RECEIPT_STEPS = `1. Open the receipt link: https://testnet.rialoscan.org/tx/<txSignature>
+const VERIFY_RECEIPT_STEPS = `1. Open the receipt link: https://devnet.rialoscan.org/tx/<txSignature>
 2. Confirm the fee payer / signer is the official Rialink anchor wallet:
    ${ANCHOR_WALLET_ADDRESS}
 3. Read instruction #1 memo data (base58) and decode it.
@@ -74,7 +74,7 @@ const VERIFY_RECEIPT_STEPS = `1. Open the receipt link: https://testnet.rialosca
 5. Recompute <identityRoot> from GET /api/verify/[wallet] using the recipe
    below. Match => the attested state is publicly guaranteed.
 
-Prefer raw JSON-RPC? POST https://testnet.rialo.io:4101
+Prefer raw JSON-RPC? POST https://devnet.rialo.io:4101
   {"jsonrpc":"2.0","id":1,"method":"getTransaction",
    "params":[{"signature":"<txSignature>"}]}`;
 
@@ -304,7 +304,7 @@ export default function DevelopersPage() {
           On-chain receipts (Rialo anchoring)
         </h2>
         <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "12px", maxWidth: "760px" }}>
-          Identity changes are anchored on Rialo testnet as public, tamper-evident
+          Identity changes are anchored on Rialo devnet as public, tamper-evident
           receipts. Each receipt is a memo transaction signed by the official
           Rialink anchor wallet, so nobody (including us) can rewrite history
           silently. Proofs whose API record lacks a <code>chain</code> field are
