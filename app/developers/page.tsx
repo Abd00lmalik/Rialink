@@ -48,6 +48,36 @@ const POLICY_RESPONSE = `{
   "accessToken": "vm_[base64-encoded-payload]"
 }`;
 
+const ANCHOR_WALLET_ADDRESS = "DHJgm5BXvq7j2ud3bYXJWZBhVhXkQmyqeqi8WAytZHQi";
+
+const RECEIPT_PAYLOAD_FORMAT = `rialink:v1|<action>|<wallet>|<identityRoot>
+
+action      "create" or "revoke"
+wallet      the subject wallet address
+identityRoot  64-char lowercase hex sha256
+
+Example:
+rialink:v1|create|7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU|3f7a91c0...c9e2`;
+
+const IDENTITY_ROOT_RECIPE = `// Recompute a wallet's identity root from public proof data:
+proofHashes = proofs.map(p => p.proofHash).sort()
+identityRoot = sha256("rialink:root:v1|" + proofHashes.join("|"))
+
+// proofHash itself is returned by GET /api/verify/[wallet],
+// so the whole computation is reproducible without trusting us.`;
+
+const VERIFY_RECEIPT_STEPS = `1. Open the receipt link: https://testnet.rialoscan.org/tx/<txSignature>
+2. Confirm the fee payer / signer is the official Rialink anchor wallet:
+   ${ANCHOR_WALLET_ADDRESS}
+3. Read instruction #1 memo data (base58) and decode it.
+4. Check it matches: rialink:v1|<action>|<wallet>|<identityRoot>
+5. Recompute <identityRoot> from GET /api/verify/[wallet] using the recipe
+   below. Match => the attested state is publicly guaranteed.
+
+Prefer raw JSON-RPC? POST https://testnet.rialo.io:4101
+  {"jsonrpc":"2.0","id":1,"method":"getTransaction",
+   "params":[{"signature":"<txSignature>"}]}`;
+
 const API_ROWS = [
   {
     method: "GET",
@@ -258,6 +288,32 @@ export default function DevelopersPage() {
         <div style={{ display: "grid", gap: "12px" }}>
           <CodePanel title="Request" code={POLICY_REQUEST} />
           <CodePanel title="Response" code={POLICY_RESPONSE} />
+        </div>
+      </section>
+
+      <section
+        style={{
+          border: "1px solid var(--border-subtle)",
+          borderRadius: "16px",
+          background: "var(--bg-surface)",
+          padding: "20px",
+          marginBottom: "18px",
+        }}
+      >
+        <h2 style={{ fontSize: "20px", letterSpacing: "-0.01em", marginBottom: "12px" }}>
+          On-chain receipts (Rialo anchoring)
+        </h2>
+        <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "12px", maxWidth: "760px" }}>
+          Identity changes are anchored on Rialo testnet as public, tamper-evident
+          receipts. Each receipt is a memo transaction signed by the official
+          Rialink anchor wallet — nobody (including us) can rewrite history
+          silently. Proofs whose API record lacks a <code>chain</code> field are
+          stored off-chain only.
+        </p>
+        <div style={{ display: "grid", gap: "12px" }}>
+          <CodePanel title="Memo payload format" code={RECEIPT_PAYLOAD_FORMAT} />
+          <CodePanel title="How to verify a receipt independently" code={VERIFY_RECEIPT_STEPS} />
+          <CodePanel title="Identity root recipe" code={IDENTITY_ROOT_RECIPE} />
         </div>
       </section>
 
