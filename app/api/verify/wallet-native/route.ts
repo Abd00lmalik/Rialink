@@ -2,7 +2,7 @@
  * POST /api/verify/wallet-native
  *
  * Verify a wallet-native signature and link identity.
- * The user signs a challenge message, we verify the signature,
+ * The user signs a challenge message, we verify the Ed25519 signature,
  * then read any existing proofs for that wallet from Redis.
  */
 
@@ -11,7 +11,6 @@ import { Redis } from "@upstash/redis";
 import { checkRateLimit, getRequestIp } from "@/lib/server/rate-limit";
 import { isValidWalletAddress, normalizeWallet } from "@/lib/server/wallet";
 import { withPublicCors } from "@/lib/server/cors";
-import { createPublicKey } from "crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,23 +32,30 @@ function getRedis() {
 }
 
 /**
- * Verify a Solana signature.
- * Uses the Ed25519 signature verification built into Node.js crypto.
+ * Verify a Solana Ed25519 signature.
+ *
+ * Solana wallets (Phantom, Solflare, Backpack) sign UTF-8 message bytes
+ * using Ed25519. The public key is the wallet's base58 address (32 bytes).
  */
 async function verifySolanaSignature(
   message: string,
   signature: string,
-  publicKey: string
+  walletAddress: string
 ): Promise<boolean> {
   try {
     const { ed25519 } = await import("@noble/curves/ed25519");
+    const bs58 = await import("bs58");
+
     const msgBytes = new TextEncoder().encode(message);
     const sigBytes = Buffer.from(signature, "base64");
-    const pubBytes = Buffer.from(publicKey, "base64");
+    const pubBytes = bs58.default.decode(walletAddress);
+
+    if (sigBytes.length !== 64) return false;
+    if (pubBytes.length !== 32) return false;
+
     return ed25519.verify(sigBytes, msgBytes, pubBytes);
   } catch {
-    // Fallback: accept if we can't verify (dev mode)
-    return process.env.NODE_ENV === "development";
+    return false;
   }
 }
 
@@ -123,8 +129,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Verify signature (dev mode: skip strict verification)
-  const signatureValid = process.env.NODE_ENV === "development" || true; // TODO: real verification
+  // Verify the wallet address matches the challenge
+  if (wallet !== String(stored.wallet || "")) {
+    return withPublicCors(
+      NextResponse.json({ error: "Wallet mismatch" }, { status: 400 }),
+      "POST, OPTIONS"
+    );
+  }
+
+  // Verify Ed25519 signature
+  const signatureValid = await verifySolanaSignature(message, signature, wallet);
   if (!signatureValid) {
     return withPublicCors(
       NextResponse.json({ error: "Invalid signature" }, { status: 400 }),

@@ -1,20 +1,19 @@
 /**
  * On-chain identity verifier for Rialo.
  *
- * Reads identity memo transactions from the Rialo chain and computes
- * trust level without calling the Rialink API. Any dApp can use this
- * to verify a wallet trustlessly.
+ * Reads identity memo transactions from the Rialo chain and verifies
+ * that a wallet's identity root is anchored. Optionally cross-references
+ * with the Rialink REST API to resolve which platforms are verified.
  *
- * Flow:
- *   1. Fetch memo txs from anchor address via getSignaturesForAddress
- *   2. Filter by target wallet
- *   3. Decode memo: rialink:v1|<action>|<wallet>|<identityRoot>
- *   4. Return verified platforms + trust level
+ * Two modes:
+ *   - Pure chain: verifyOnChain(wallet) — confirms anchoring exists
+ *   - Chain + API: verifyOnChain(wallet, rpcUrl, apiUrl) — also resolves platforms
  */
 
 const ANCHOR_WALLET = "6b96D9tmtkrx2i4nc5tiaLr5pLbne4wenv3iTYe3Bp6r";
 const MEMO_PREFIX = "rialink:v1|";
 const DEFAULT_RPC = "https://devnet.rialo.io:4101";
+const DEFAULT_API = "https://rialink.vercel.app";
 
 type Platform = "github" | "discord" | "farcaster";
 type TrustLevel = "high" | "medium" | "low" | "none";
@@ -27,7 +26,6 @@ interface AnchorMemo {
 
 interface OnChainProof {
   wallet: string;
-  platform: Platform;
   action: "create" | "revoke";
   identityRoot: string;
   txSignature: string;
@@ -41,10 +39,16 @@ interface OnChainVerification {
   trustLevel: TrustLevel;
   verifiedPlatforms: Platform[];
   totalVerified: number;
-  proofs: OnChainProof[];
+  onChainProofs: OnChainProof[];
   identityRoot: string | null;
   explorerUrl: string | null;
-  verifiedAt: string;
+  anchored: boolean;
+  chainTimestamp: string;
+  apiCrossRef?: {
+    match: boolean;
+    apiIdentityRoot: string | null;
+    apiPlatforms: Platform[];
+  };
 }
 
 // ─── Raw RPC helpers ────────────────────────────────────────────
@@ -59,7 +63,6 @@ async function rawRpc(rpcUrl: string, method: string, params: unknown[]): Promis
   if (!res.ok) throw new Error(`rpc_http_${res.status}`);
   const payload = (await res.json()) as { result?: { value?: unknown; context?: unknown }; error?: { message?: string } };
   if (payload.error) throw new Error(`rpc_error: ${String(payload.error.message || "unknown").slice(0, 120)}`);
-  // getSignaturesForAddress wraps in { context, value }
   const result = payload.result;
   if (result && typeof result === "object" && "value" in result) return result.value;
   return result;
@@ -115,14 +118,12 @@ async function fetchAnchorTransactions(
   rpcUrl: string,
   targetWallet: string
 ): Promise<OnChainProof[]> {
-  // Step 1: Get all signatures for the anchor wallet
   const sigsResult = (await rawRpc(rpcUrl, "getSignaturesForAddress", [
     { address: ANCHOR_WALLET, limit: 1000 },
   ])) as { signature: string; slot: number; blockTime?: number }[];
 
   if (!sigsResult || sigsResult.length === 0) return [];
 
-  // Step 2: Fetch each transaction and decode the memo
   const proofs: OnChainProof[] = [];
   const BATCH_SIZE = 10;
 
@@ -135,13 +136,11 @@ async function fetchAnchorTransactions(
         ])) as {
           meta?: { err?: unknown };
           transaction?: {
-            message?: {
-              instructions?: { data?: string }[];
-            };
+            message?: { instructions?: { data?: string }[] };
           };
         };
 
-        if (tx?.meta?.err) return null; // failed tx
+        if (tx?.meta?.err) return null;
         const memoData = tx?.transaction?.message?.instructions?.[0]?.data;
         if (!memoData) return null;
 
@@ -149,18 +148,13 @@ async function fetchAnchorTransactions(
         if (!memo) return null;
         if (memo.wallet !== targetWallet) return null;
 
-        // Derive platform from identity root or default to "github"
-        // The memo doesn't store which platform — we infer from the
-        // full identity root computation. For now, we store the root
-        // and let the caller match against known platform proofs.
         return {
           wallet: memo.wallet,
-          platform: "github" as Platform, // placeholder, resolved later
           action: memo.action,
           identityRoot: memo.identityRoot,
           txSignature: sig.signature,
           slot: sig.slot,
-          timestamp: sig.blockTime ? sig.blockTime * 1000 : Date.now(),
+          timestamp: sig.blockTime ? sig.blockTime : Date.now(),
         };
       } catch {
         return null;
@@ -176,101 +170,90 @@ async function fetchAnchorTransactions(
   return proofs;
 }
 
-// ─── Derive platforms from anchor memos ─────────────────────────
+// ─── REST API cross-reference ───────────────────────────────────
 
-/**
- * The identity root is a hash of all platform proof hashes.
- * When we see a "create" memo, we know the wallet added/changed identity.
- * When we see a "revoke" memo, we know the wallet removed a platform.
- *
- * To determine which platforms are verified, we need the actual proof data.
- * The on-chain verifier returns the latest identity root and lets the caller
- * match it against the REST API response for full platform details.
- */
-function resolvePlatforms(proofs: OnChainProof[]): {
+interface ApiResponse {
+  wallet: string;
+  valid: boolean;
+  trustLevel: TrustLevel;
+  verifiedPlatforms: Platform[];
+  totalVerified: number;
+  proofs: Array<{
+    platform: Platform;
+    proofHash: string;
+    [key: string]: unknown;
+  }>;
+  identityRoot?: string;
+}
+
+async function fetchApiVerification(
+  apiUrl: string,
+  wallet: string
+): Promise<ApiResponse | null> {
+  try {
+    const res = await fetch(`${apiUrl}/api/verify/${wallet}`, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+// ─── Compute identity root from API proof hashes ────────────────
+
+function computeIdentityRootFromProofs(proofs: Array<{ proofHash: string }>): string | null {
+  if (proofs.length === 0) return null;
+  const crypto = require("crypto");
+  const joined = proofs.map((p) => p.proofHash).sort().join(":");
+  return crypto.createHash("sha256").update(joined).digest("hex").slice(0, 32);
+}
+
+// ─── Derive platforms from on-chain data + API ──────────────────
+
+function resolveFromChainAndApi(
+  proofs: OnChainProof[],
+  apiData: ApiResponse | null
+): {
   platforms: Platform[];
   identityRoot: string | null;
   latestProof: OnChainProof | null;
+  apiCrossRef: OnChainVerification["apiCrossRef"];
 } {
-  // Find the latest "create" proof (most recent identity state)
+  // Get latest on-chain identity root
   const creates = proofs
     .filter((p) => p.action === "create")
     .sort((a, b) => b.timestamp - a.timestamp);
 
   const latestProof = creates[0] || null;
-  const identityRoot = latestProof?.identityRoot || null;
+  const chainIdentityRoot = latestProof?.identityRoot || null;
 
-  // Without the actual proof hashes, we can't derive individual platforms
-  // from the identity root alone. Return empty — the caller should cross-ref
-  // with the REST API for full platform details.
-  return { platforms: [], identityRoot, latestProof };
-}
-
-// ─── Public API ─────────────────────────────────────────────────
-
-/**
- * Verify a wallet's identity entirely on-chain.
- *
- * Reads memo transactions from the Rialo chain and returns the identity
- * state without calling the Rialink API. For full platform details,
- * cross-reference with GET /api/verify/:wallet.
- *
- * @param wallet - The wallet address to verify
- * @param rpcUrl - Rialo RPC URL (defaults to devnet)
- * @returns On-chain verification result
- */
-export async function verifyOnChain(
-  wallet: string,
-  rpcUrl: string = DEFAULT_RPC
-): Promise<OnChainVerification> {
-  if (!wallet || wallet.length < 32) {
-    return {
-      wallet,
-      valid: false,
-      trustLevel: "none",
-      verifiedPlatforms: [],
-      totalVerified: 0,
-      proofs: [],
-      identityRoot: null,
-      explorerUrl: null,
-      verifiedAt: new Date().toISOString(),
-    };
+  if (!apiData) {
+    // No API data — pure chain mode, can't resolve platforms
+    return { platforms: [], identityRoot: chainIdentityRoot, latestProof, apiCrossRef: undefined };
   }
 
-  const proofs = await fetchAnchorTransactions(rpcUrl, wallet);
-  const { platforms, identityRoot, latestProof } = resolvePlatforms(proofs);
-
-  const explorerUrl = latestProof
-    ? `https://devnet.rialoscan.org/tx/${latestProof.txSignature}`
+  // Cross-reference: compare on-chain root with API-derived root
+  const apiIdentityRoot = apiData.proofs.length > 0
+    ? computeIdentityRootFromProofs(apiData.proofs)
     : null;
 
-  const trustLevel = deriveTrustLevel(platforms.length);
+  const rootsMatch = chainIdentityRoot && apiIdentityRoot
+    ? chainIdentityRoot === apiIdentityRoot
+    : chainIdentityRoot === null; // if no chain root, treat as match
 
   return {
-    wallet,
-    valid: platforms.length > 0,
-    trustLevel,
-    verifiedPlatforms: platforms,
-    totalVerified: platforms.length,
-    proofs,
-    identityRoot,
-    explorerUrl,
-    verifiedAt: latestProof
-      ? new Date(latestProof.timestamp).toISOString()
-      : new Date().toISOString(),
+    platforms: apiData.verifiedPlatforms,
+    identityRoot: chainIdentityRoot || apiIdentityRoot,
+    latestProof,
+    apiCrossRef: {
+      match: rootsMatch,
+      apiIdentityRoot,
+      apiPlatforms: apiData.verifiedPlatforms,
+    },
   };
-}
-
-/**
- * Quick trust level check — just returns the level, no full proof details.
- * Useful for gating where you only need "is this wallet verified?".
- */
-export async function getTrustLevel(
-  wallet: string,
-  rpcUrl: string = DEFAULT_RPC
-): Promise<TrustLevel> {
-  const result = await verifyOnChain(wallet, rpcUrl);
-  return result.trustLevel;
 }
 
 // ─── Trust level derivation ─────────────────────────────────────
@@ -282,7 +265,105 @@ function deriveTrustLevel(verifiedCount: number): TrustLevel {
   return "none";
 }
 
-// ─── Exports for external use ───────────────────────────────────
+// ─── Public API ─────────────────────────────────────────────────
 
-export { ANCHOR_WALLET, decodeAnchorMemo, b58decodeToStr };
+/**
+ * Verify a wallet's identity on Rialo.
+ *
+ * Mode 1 — Pure chain (no apiUrl):
+ *   Confirms identity root is anchored on-chain. Returns empty platforms
+ *   since the memo format doesn't include platform info.
+ *
+ * Mode 2 — Chain + API (with apiUrl):
+ *   Cross-references on-chain anchor with REST API data.
+ *   Resolves platforms and verifies identity root consistency.
+ *
+ * @param wallet - The wallet address to verify
+ * @param rpcUrl - Rialo RPC URL (defaults to devnet)
+ * @param apiUrl - Rialink API URL (defaults to production). Pass null to skip API cross-ref.
+ */
+export async function verifyOnChain(
+  wallet: string,
+  rpcUrl: string = DEFAULT_RPC,
+  apiUrl: string | null = DEFAULT_API
+): Promise<OnChainVerification> {
+  if (!wallet || wallet.length < 32) {
+    return {
+      wallet,
+      valid: false,
+      trustLevel: "none",
+      verifiedPlatforms: [],
+      totalVerified: 0,
+      onChainProofs: [],
+      identityRoot: null,
+      explorerUrl: null,
+      anchored: false,
+      chainTimestamp: new Date().toISOString(),
+    };
+  }
+
+  // Fetch on-chain memos
+  const onChainProofs = await fetchAnchorTransactions(rpcUrl, wallet);
+
+  // Optionally cross-reference with REST API
+  let apiData: ApiResponse | null = null;
+  if (apiUrl) {
+    apiData = await fetchApiVerification(apiUrl, wallet);
+  }
+
+  const { platforms, identityRoot, latestProof, apiCrossRef } = resolveFromChainAndApi(onChainProofs, apiData);
+
+  const explorerUrl = latestProof
+    ? `https://devnet.rialoscan.org/tx/${latestProof.txSignature}`
+    : null;
+
+  const anchored = onChainProofs.some((p) => p.action === "create");
+  const trustLevel = deriveTrustLevel(platforms.length);
+
+  return {
+    wallet,
+    valid: anchored || platforms.length > 0,
+    trustLevel,
+    verifiedPlatforms: platforms,
+    totalVerified: platforms.length,
+    onChainProofs,
+    identityRoot,
+    explorerUrl,
+    anchored,
+    chainTimestamp: latestProof
+      ? new Date(latestProof.timestamp).toISOString()
+      : new Date().toISOString(),
+    ...(apiCrossRef ? { apiCrossRef } : {}),
+  };
+}
+
+/**
+ * Quick trust level check — just returns the level.
+ */
+export async function getTrustLevel(
+  wallet: string,
+  rpcUrl: string = DEFAULT_RPC,
+  apiUrl: string | null = DEFAULT_API
+): Promise<TrustLevel> {
+  const result = await verifyOnChain(wallet, rpcUrl, apiUrl);
+  return result.trustLevel;
+}
+
+/**
+ * Check if a wallet's on-chain identity root matches the API root.
+ * Returns true if both agree, false if mismatch, null if can't determine.
+ */
+export async function checkIdentityConsistency(
+  wallet: string,
+  rpcUrl: string = DEFAULT_RPC,
+  apiUrl: string = DEFAULT_API
+): Promise<boolean | null> {
+  const result = await verifyOnChain(wallet, rpcUrl, apiUrl);
+  if (!result.apiCrossRef) return null;
+  return result.apiCrossRef.match;
+}
+
+// ─── Exports ────────────────────────────────────────────────────
+
+export { ANCHOR_WALLET, decodeAnchorMemo, b58decodeToStr, deriveTrustLevel };
 export type { AnchorMemo, OnChainProof, OnChainVerification, Platform, TrustLevel };
