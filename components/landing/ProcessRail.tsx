@@ -21,7 +21,7 @@ const STEPS = [
   {
     num: "04",
     title: "Share and verify trustlessly",
-    body: "Your profile and RialCard go live instantly. Integrators verify via API — identity roots anchor on Rialo for public auditability.",
+    body: "Your profile and RialCard go live instantly. Integrators verify via API, and identity roots anchor on Rialo for public auditability.",
   },
 ];
 

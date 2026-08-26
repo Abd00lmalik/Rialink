@@ -57,7 +57,7 @@ export function Metrics() {
                 minHeight: 38,
               }}
             >
-              {value ?? "—"}
+              {value ?? "N/A"}
             </p>
             <p style={{ fontSize: 12.5, color: "var(--text-faint)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
               {label}

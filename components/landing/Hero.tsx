@@ -112,15 +112,16 @@ export function Hero() {
 
           <h1
             style={{
-              fontSize: "clamp(44px, 6.4vw, 76px)",
-              fontWeight: 500,
-              lineHeight: 1.05,
-              letterSpacing: "-0.03em",
+              fontFamily: "'Instrument Serif', Georgia, 'Times New Roman', serif",
+              fontWeight: 400,
+              fontSize: "clamp(48px, 6.8vw, 84px)",
+              lineHeight: 1.04,
+              letterSpacing: "-0.01em",
               color: "var(--text-primary)",
               marginBottom: 22,
             }}
           >
-            Proof Over Persona
+            Proof Over <em style={{ fontStyle: "italic" }}>Persona</em>
           </h1>
 
           <p
@@ -132,7 +133,7 @@ export function Hero() {
               marginBottom: 32,
             }}
           >
-            Bind a wallet to GitHub, Discord, and Farcaster — issue a portable signed proof anyone can verify, no profile picture trusted.
+            Bind a wallet to GitHub, Discord, and Farcaster. Issue a portable signed proof anyone can verify, without trusting a profile picture.
           </p>
 
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 30 }}>

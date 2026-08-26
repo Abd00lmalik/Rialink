@@ -6,7 +6,7 @@ import { ChevronDown } from "lucide-react";
 const FAQS = [
   {
     q: "Is my personal data stored on-chain?",
-    a: "No. We do not store your email or real name. Proofs are hashes derived from your wallet address and a platform account ID — never readable personal data.",
+    a: "No. We do not store your email or real name. Proofs are hashes derived from your wallet address and a platform account ID, never readable personal data.",
   },
   {
     q: "What exactly is a proof hash?",
@@ -14,7 +14,7 @@ const FAQS = [
   },
   {
     q: "What is a root hash?",
-    a: "A root hash is one summary hash built from your per-platform proof hashes. It gives DAOs a one-value check for a wallet's verification state — and it is what gets anchored on Rialo.",
+    a: "A root hash is one summary hash built from your per-platform proof hashes. It gives DAOs a one-value check for a wallet's verification state, and it is what gets anchored on Rialo.",
   },
   {
     q: "Can I remove a verification?",

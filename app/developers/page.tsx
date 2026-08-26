@@ -306,7 +306,7 @@ export default function DevelopersPage() {
         <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "12px", maxWidth: "760px" }}>
           Identity changes are anchored on Rialo testnet as public, tamper-evident
           receipts. Each receipt is a memo transaction signed by the official
-          Rialink anchor wallet — nobody (including us) can rewrite history
+          Rialink anchor wallet, so nobody (including us) can rewrite history
           silently. Proofs whose API record lacks a <code>chain</code> field are
           stored off-chain only.
         </p>
